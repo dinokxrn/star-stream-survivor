@@ -162,12 +162,15 @@ export class CoopRoom extends DurableObject {
         roomState.stage = Math.max(1, Math.min(4, Number(data.stage) || 1));
         roomState.started = true;
         await this.ctx.storage.put("room_state", roomState);
-        this._broadcast({
-          type: "stage_start",
-          stage: roomState.stage,
-          host_id: roomState.host_id,
-          players: this._listPlayers(),
-        });
+        this._broadcast(
+          {
+            type: "stage_start",
+            stage: roomState.stage,
+            host_id: roomState.host_id,
+            players: this._listPlayers(),
+          },
+          ws
+        );
       }
       return;
     }
@@ -189,6 +192,7 @@ export class CoopRoom extends DurableObject {
       msgType === "player_fx" ||
       msgType === "enemy_hit" ||
       msgType === "enemy_sync" ||
+      msgType === "player_hit" ||
       msgType === "scenario_sync" ||
       msgType === "revive" ||
       msgType === "chat_toast"

@@ -53,7 +53,8 @@ func _open_panel(kind: String, panel: Control) -> void:
 	_active_kind = kind
 	_center.add_child(panel)
 	visible = true
-	get_tree().paused = true
+	if not NetworkManager.is_online:
+		get_tree().paused = true
 	modal_state_changed.emit(true)
 	SfxManager.play("system")
 

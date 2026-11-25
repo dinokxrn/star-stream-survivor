@@ -114,6 +114,8 @@ func _start_run_with_attribute(attr_id: String) -> void:
 
 
 func _on_net_stage_start(stage_num: int) -> void:
+	if NetworkManager.is_host and _in_gameplay and ScenarioManager.current_stage == stage_num:
+		return
 	if not _in_gameplay:
 		_roll_screen.visible = false
 		_hud.visible = true

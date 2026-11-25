@@ -11,6 +11,7 @@ signal peer_state_received(data: Dictionary)
 signal peer_fx_received(data: Dictionary)
 signal enemy_hit_received(data: Dictionary)
 signal enemy_sync_received(enemies: Array)
+signal player_hit_received(data: Dictionary)
 signal scenario_sync_received(data: Dictionary)
 signal revive_received(from_peer: String, target_peer: String)
 signal toast_received(text: String)
@@ -181,6 +182,8 @@ func _handle_message(txt: String) -> void:
 			var arr: Variant = msg.get("enemies", [])
 			if arr is Array:
 				enemy_sync_received.emit(arr)
+		"player_hit":
+			player_hit_received.emit(msg)
 		"scenario_sync":
 			scenario_sync_received.emit(msg)
 		"revive":
@@ -258,6 +261,26 @@ func send_enemy_sync(enemies_arr: Array) -> void:
 	if not is_online or not is_host:
 		return
 	_send_json({"type": "enemy_sync", "enemies": enemies_arr})
+
+
+func send_player_hit(target_peer: String, dmg: int, knock_x: float, unparryable: bool = false) -> void:
+	if not is_online or not is_host or target_peer == "":
+		return
+	_send_json({
+		"type": "player_hit",
+		"target_peer": target_peer,
+		"dmg": dmg,
+		"knock_x": snappedf(knock_x, 1.0),
+		"unparryable": unparryable,
+	})
+
+
+func send_scenario_sync_dict(payload: Dictionary) -> void:
+	if not is_online or not is_host:
+		return
+	var msg := payload.duplicate()
+	msg["type"] = "scenario_sync"
+	_send_json(msg)
 
 
 func send_scenario_sync(stage_num: int, kills: int, target_kills: int, cleared: bool) -> void:

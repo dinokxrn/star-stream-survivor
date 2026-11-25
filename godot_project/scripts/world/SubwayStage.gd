@@ -146,6 +146,10 @@ func _exit_tree() -> void:
 		NetworkManager.enemy_hit_received.disconnect(_on_net_enemy_hit)
 	if NetworkManager.enemy_sync_received.is_connected(_on_net_enemy_sync):
 		NetworkManager.enemy_sync_received.disconnect(_on_net_enemy_sync)
+	if NetworkManager.player_hit_received.is_connected(_on_net_player_hit):
+		NetworkManager.player_hit_received.disconnect(_on_net_player_hit)
+	if NetworkManager.scenario_sync_received.is_connected(_on_net_scenario_sync):
+		NetworkManager.scenario_sync_received.disconnect(_on_net_scenario_sync)
 	if NetworkManager.revive_received.is_connected(_on_net_revive):
 		NetworkManager.revive_received.disconnect(_on_net_revive)
 	if NetworkManager.toast_received.is_connected(_on_net_toast):
@@ -159,10 +163,14 @@ func _setup_coop_network() -> void:
 		NetworkManager.peer_fx_received.connect(_on_net_peer_fx)
 		NetworkManager.enemy_hit_received.connect(_on_net_enemy_hit)
 		NetworkManager.enemy_sync_received.connect(_on_net_enemy_sync)
+		NetworkManager.player_hit_received.connect(_on_net_player_hit)
+		NetworkManager.scenario_sync_received.connect(_on_net_scenario_sync)
 		NetworkManager.revive_received.connect(_on_net_revive)
 		NetworkManager.toast_received.connect(_on_net_toast)
 	if NetworkManager.is_online:
 		_sync_remote_roster(NetworkManager.room_players)
+		if NetworkManager.is_host:
+			_broadcast_host_enemies()
 
 
 func _on_local_player_hit_enemy(enemy: Node, _dmg: int) -> void:
@@ -201,6 +209,8 @@ func _sync_remote_roster(players: Array) -> void:
 
 func _on_net_room_updated(players: Array, _host_id: String, _started: bool, _stage_num: int) -> void:
 	_sync_remote_roster(players)
+	if NetworkManager.is_online and NetworkManager.is_host:
+		_broadcast_host_enemies()
 
 
 func _on_net_peer_state(data: Dictionary) -> void:
@@ -238,10 +248,26 @@ func _on_net_enemy_hit(data: Dictionary) -> void:
 		return
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(e) and String(e.net_id) == eid:
-			e.take_damage(dmg, kx, false, true)
+			if NetworkManager.is_host:
+				e.take_damage(dmg, kx, false, true)
 			if player != null and is_instance_valid(player):
-				player.spawn_floating_text_at(e.global_position + Vector2(0, -28), "-%d" % dmg, Color(0.55, 0.92, 1.0))
+				player.spawn_floating_text_at(e.global_position + Vector2(0, -28), "เพื่อน -%d" % dmg, Color(0.45, 0.96, 1.0))
 			break
+
+
+func _spawn_net_puppet_enemy(entry: Dictionary) -> CharacterBody2D:
+	var e := CharacterBody2D.new()
+	e.set_script(EnemyScript)
+	e.net_id = String(entry.get("eid", ""))
+	e.is_net_puppet = true
+	var pos := Vector2(float(entry.get("x", 320.0)), float(entry.get("y", FLOOR_Y)))
+	e._net_target_pos = pos
+	add_child(e)
+	e.setup(String(entry.get("arch", "frenzy")), pos)
+	if bool(entry.get("elite", false)):
+		e.make_elite(bool(entry.get("golden", false)))
+	e.apply_net_sync(pos.x, pos.y, int(entry.get("hp", e.max_hp)), int(entry.get("max_hp", e.max_hp)), int(entry.get("facing", -1)), String(entry.get("state", "idle")))
+	return e
 
 
 func _on_net_enemy_sync(enemies_arr: Array) -> void:
@@ -251,21 +277,69 @@ func _on_net_enemy_sync(enemies_arr: Array) -> void:
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if is_instance_valid(e) and String(e.net_id) != "":
 			by_id[String(e.net_id)] = e
+	var seen: Dictionary = {}
 	for entry in enemies_arr:
 		if not (entry is Dictionary):
 			continue
 		var eid := String(entry.get("eid", ""))
-		if eid == "" or not by_id.has(eid):
+		if eid == "":
 			continue
-		var enemy_node: Node = by_id[eid]
-		if is_instance_valid(enemy_node):
-			enemy_node.apply_net_sync(
-				float(entry.get("x", enemy_node.position.x)),
-				float(entry.get("y", enemy_node.position.y)),
-				int(entry.get("hp", enemy_node.hp)),
-				int(entry.get("max_hp", enemy_node.max_hp)),
-				int(entry.get("facing", enemy_node.facing))
-			)
+		seen[eid] = true
+		if by_id.has(eid):
+			var enemy_node: Node = by_id[eid]
+			if is_instance_valid(enemy_node):
+				enemy_node.is_net_puppet = true
+				enemy_node.apply_net_sync(
+					float(entry.get("x", enemy_node.position.x)),
+					float(entry.get("y", enemy_node.position.y)),
+					int(entry.get("hp", enemy_node.hp)),
+					int(entry.get("max_hp", enemy_node.max_hp)),
+					int(entry.get("facing", enemy_node.facing)),
+					String(entry.get("state", "idle"))
+				)
+		else:
+			_spawn_net_puppet_enemy(entry)
+	for eid in by_id.keys():
+		if not seen.has(eid):
+			var dead_node: Node = by_id[eid]
+			if is_instance_valid(dead_node):
+				dead_node.die_from_network()
+
+
+func _on_net_player_hit(data: Dictionary) -> void:
+	if String(data.get("target_peer", "")) == NetworkManager.my_peer_id and player != null and is_instance_valid(player):
+		player.take_damage(int(data.get("dmg", 10)), float(data.get("knock_x", 0.0)), null, bool(data.get("unparryable", false)))
+
+
+func _on_net_scenario_sync(data: Dictionary) -> void:
+	if NetworkManager.is_host:
+		return
+	var killed_arch := String(data.get("killed_arch", ""))
+	if killed_arch != "":
+		ScenarioManager.register_enemy_killed(killed_arch, true)
+		if bool(data.get("was_elite", false)):
+			ScenarioManager.register_elite_killed(bool(data.get("was_golden", false)))
+
+
+func _broadcast_host_enemies() -> void:
+	if not NetworkManager.is_online or not NetworkManager.is_host:
+		return
+	var payload: Array = []
+	for e in get_tree().get_nodes_in_group("enemies"):
+		if is_instance_valid(e) and String(e.net_id) != "" and e.hp > 0:
+			payload.append({
+				"eid": String(e.net_id),
+				"arch": String(e.archetype),
+				"x": snappedf(e.position.x, 0.5),
+				"y": snappedf(e.position.y, 0.5),
+				"hp": e.hp,
+				"max_hp": e.max_hp,
+				"facing": e.facing,
+				"state": String(e._state),
+				"elite": bool(e.is_elite),
+				"golden": bool(e.is_golden_elite),
+			})
+	NetworkManager.send_enemy_sync(payload)
 
 
 func _on_net_revive(_from_peer: String, target_peer: String) -> void:
@@ -436,9 +510,22 @@ func _spawn_enemy(archetype: String, pos: Vector2) -> CharacterBody2D:
 	e.set_script(EnemyScript)
 	_next_enemy_seq += 1
 	e.net_id = "s%d_e%d" % [stage_num, _next_enemy_seq]
+	if NetworkManager.is_online and not NetworkManager.is_host:
+		e.is_net_puppet = true
+		e._net_target_pos = pos
 	add_child(e)
 	e.setup(archetype, pos)
 	e.request_summon.connect(_on_boss_summon)
+	if NetworkManager.is_online and NetworkManager.is_host:
+		e.enemy_died.connect(func(dead_e: Node, arch: String):
+			NetworkManager.send_scenario_sync_dict({
+				"stage": stage_num,
+				"killed_arch": arch,
+				"was_elite": bool(dead_e.is_elite),
+				"was_golden": bool(dead_e.is_golden_elite),
+			})
+			call_deferred("_broadcast_host_enemies")
+		)
 	return e
 
 
@@ -571,21 +658,9 @@ func _process(delta: float) -> void:
 					break
 		if NetworkManager.is_host:
 			_net_enemy_tick += delta
-			if _net_enemy_tick >= 0.16:
+			if _net_enemy_tick >= 0.08:
 				_net_enemy_tick = 0.0
-				var payload: Array = []
-				for e in get_tree().get_nodes_in_group("enemies"):
-					if is_instance_valid(e) and String(e.net_id) != "":
-						payload.append({
-							"eid": String(e.net_id),
-							"x": snappedf(e.position.x, 0.5),
-							"y": snappedf(e.position.y, 0.5),
-							"hp": e.hp,
-							"max_hp": e.max_hp,
-							"facing": e.facing,
-						})
-				if payload.size() > 0:
-					NetworkManager.send_enemy_sync(payload)
+				_broadcast_host_enemies()
 	if _dokkaebi != null:
 		_dokkaebi.position.y = 114.0 + sin(_dokkaebi_time * 3.2) * 5.0
 	if _flicker_overlay != null:

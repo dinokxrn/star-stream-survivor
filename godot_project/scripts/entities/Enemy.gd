@@ -10,6 +10,8 @@ signal request_summon(archetype: String, pos: Vector2)
 const GRAVITY: float = 760.0
 
 var net_id: String = ""
+var is_net_puppet: bool = false
+var _net_target_pos: Vector2 = Vector2.ZERO
 var archetype: String = "frenzy"
 var is_elite: bool = false
 var is_golden_elite: bool = false
@@ -235,6 +237,16 @@ func is_attacking_danger() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	if is_net_puppet:
+		if position.distance_to(_net_target_pos) > 130.0:
+			position = _net_target_pos
+		else:
+			position = position.lerp(_net_target_pos, minf(1.0, delta * 14.0))
+		if _sprite != null:
+			_sprite.flip_h = facing < 0
+		_update_anim()
+		return
+
 	if _slow_timer > 0.0:
 		_slow_timer = maxf(0.0, _slow_timer - delta)
 	if _armor_break_timer > 0.0:
@@ -259,7 +271,7 @@ func _physics_process(delta: float) -> void:
 		_attack_cd -= delta * (0.55 if _slow_timer > 0.0 else (1.35 if _boss_phase2 else 1.0))
 	velocity.y += GRAVITY * delta
 
-	var player := get_tree().get_first_node_in_group("player")
+	var player := _find_nearest_target()
 	if player == null or not is_instance_valid(player):
 		velocity.x = 0.0
 		move_and_slide()
@@ -302,7 +314,7 @@ func _physics_process(delta: float) -> void:
 				if global_position.distance_to(player.global_position) <= hit_dist:
 					_did_hit_this_strike = true
 					var eff_dmg := int(round(float(attack_damage) * (0.60 if _weaken_timer > 0.0 else 1.0)))
-					player.take_damage(eff_dmg, float(facing) * 175.0, self, _next_unparryable)
+					_hit_target(player, eff_dmg, float(facing) * 175.0, _next_unparryable)
 			if _state_timer <= 0.0:
 				_next_unparryable = false
 				if _double_lunge_left > 0:
@@ -476,13 +488,37 @@ func _base_tint() -> Color:
 	return Color.WHITE
 
 
-func apply_net_sync(nx: float, ny: float, nhp: int, nmax_hp: int, nfacing: int) -> void:
-	if absf(position.x - nx) > 120.0:
-		position = Vector2(nx, ny)
-	else:
-		position = position.lerp(Vector2(nx, ny), 0.35)
+func _find_nearest_target() -> Node2D:
+	var best: Node2D = null
+	var best_d: float = 999999.0
+	var local_p := get_tree().get_first_node_in_group("player")
+	if local_p != null and is_instance_valid(local_p) and GameState.hp > 0:
+		best = local_p
+		best_d = absf(local_p.global_position.x - global_position.x)
+	if NetworkManager.is_online:
+		for rp in get_tree().get_nodes_in_group("remote_players"):
+			if is_instance_valid(rp) and not rp.is_downed:
+				var d := absf(rp.global_position.x - global_position.x)
+				if d < best_d:
+					best_d = d
+					best = rp
+	return best
+
+
+func _hit_target(target: Node, eff_dmg: int, knock_x: float, unparryable: bool) -> void:
+	if target.has_method("take_damage"):
+		target.take_damage(eff_dmg, knock_x, self, unparryable)
+	elif NetworkManager.is_online and NetworkManager.is_host and target.is_in_group("remote_players"):
+		NetworkManager.send_player_hit(String(target.peer_id), eff_dmg, knock_x, unparryable)
+
+
+func apply_net_sync(nx: float, ny: float, nhp: int, nmax_hp: int, nfacing: int, nstate: String = "idle") -> void:
+	_net_target_pos = Vector2(nx, ny)
+	if position == Vector2.ZERO or absf(position.x - nx) > 130.0:
+		position = _net_target_pos
 	if nfacing != 0:
 		facing = nfacing
+	_state = nstate
 	max_hp = maxi(1, nmax_hp)
 	hp = clampi(nhp, 0, max_hp)
 	var is_boss := archetype.begins_with("boss")
@@ -490,16 +526,28 @@ func apply_net_sync(nx: float, ny: float, nhp: int, nmax_hp: int, nfacing: int) 
 	if _hp_bar_fill != null:
 		_hp_bar_fill.size.x = bar_w * (float(hp) / float(max_hp))
 	if hp <= 0:
-		VfxManager.spawn_vfx("coin_sparkle", get_parent(), global_position + Vector2(0, -14), false, 0.50)
-		SfxManager.play("coin")
-		if is_elite:
-			ScenarioManager.register_elite_killed(is_golden_elite)
-		ScenarioManager.register_enemy_killed(archetype, true)
-		enemy_died.emit(self, archetype)
-		queue_free()
+		die_from_network()
+
+
+func die_from_network() -> void:
+	VfxManager.spawn_vfx("coin_sparkle", get_parent(), global_position + Vector2(0, -14), false, 0.50)
+	SfxManager.play("coin")
+	queue_free()
 
 
 func take_damage(amount: int, knockback_x: float, heavy_poise_break: bool = false, from_network: bool = false) -> void:
+	if is_net_puppet and not from_network:
+		if NetworkManager.is_online and net_id != "":
+			NetworkManager.send_enemy_hit(net_id, amount, knockback_x, 0.0)
+		# Immediate visual hit feedback on Guest; Host confirms exact HP & death!
+		hp = maxi(1, hp - amount)
+		var is_boss_p := archetype.begins_with("boss")
+		var bar_w_p := 52.0 if is_boss_p else (30.0 if archetype == "brute" else 24.0)
+		if _hp_bar_fill != null:
+			_hp_bar_fill.size.x = bar_w_p * (float(hp) / float(max_hp))
+		if _sprite != null:
+			_sprite.modulate = Color(1.8, 0.9, 0.9)
+		return
 	if not from_network and NetworkManager.is_online and net_id != "":
 		NetworkManager.send_enemy_hit(net_id, amount, knockback_x, 0.0)
 	var mult := 1.0
