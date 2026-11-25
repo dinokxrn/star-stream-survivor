@@ -49,17 +49,15 @@ var _next_enemy_seq: int = 0
 var _net_player_tick: float = 0.0
 var _net_enemy_tick: float = 0.0
 
-# Probability Storm Penalty (exceeding scenario level cap)
-var _prob_drain_tick: float = 0.0
-var _prob_bind_cd: float = 4.0
-var _prob_bind_timer: float = 0.0
-var _prob_warned: bool = false
-
-# Apocalypse Dragon (Forced Execution for heavy over-leveling or coin cheating)
+# Apocalypse Dragon (Cinematic Intro + Forced Execution for over-leveling or coin cheating)
 var _dragon_spawned: bool = false
 var _dragon_node: Node2D = null
 var _dragon_sprite: AnimatedSprite2D = null
+var _dragon_cutscene_layer: CanvasLayer = null
+var _dragon_title_lbl: Label = null
+var _dragon_sub_lbl: Label = null
 var _dragon_phase_timer: float = 0.0
+var _dragon_stage2_done: bool = false
 var _dragon_executed: bool = false
 
 
@@ -650,25 +648,65 @@ func trigger_screen_shake(strength: float, duration: float) -> void:
 func _summon_apocalypse_dragon() -> void:
 	_dragon_spawned = true
 	_dragon_phase_timer = 0.0
+	_dragon_stage2_done = false
 	_dragon_executed = false
 	GameState.forced_dragon_death = true
 	player.controls_locked = true
 	SfxManager.play_bgm("bgm_boss")
 	SfxManager.play("skill")
 	SfxManager.play("hurt")
-	trigger_screen_shake(12.0, 0.90)
-	hazard_status_changed.emit("🐉 [มังกรแห่งวันสิ้นโลกปรากฏตัว!] ผู้ฝ่าฝืนความเป็นไปได้ / โกงระบบต้องตายสถานเดียว!")
-	ScenarioManager.constellation_message.emit("[★ หายนะระดับสูงสุด! 'มังกรแห่งวันสิ้นโลก' ตื่นขึ้นเพื่อพิพากษาผู้โกงเลเวล/เหรียญ! ★]", 0)
+	trigger_screen_shake(10.0, 1.2)
+	hazard_status_changed.emit("🐉 [มังกรแห่งวันสิ้นโลกปรากฏตัว!]")
+	ScenarioManager.constellation_message.emit("[★ หายนะระดับสูงสุด! 'มังกรแห่งวันสิ้นโลก' ตื่นขึ้นจากการฝ่าฝืนบทละคร! ★]", 0)
+
+	# Cinematic Letterbox + Dramatic Intro Overlay
+	_dragon_cutscene_layer = CanvasLayer.new()
+	_dragon_cutscene_layer.layer = 30
+	add_child(_dragon_cutscene_layer)
+
+	var top_bar := ColorRect.new()
+	top_bar.position = Vector2(0, 0)
+	top_bar.size = Vector2(1280, 96)
+	top_bar.color = Color(0.03, 0.0, 0.02, 0.92)
+	_dragon_cutscene_layer.add_child(top_bar)
+
+	var bot_bar := ColorRect.new()
+	bot_bar.position = Vector2(0, 600)
+	bot_bar.size = Vector2(1280, 120)
+	bot_bar.color = Color(0.03, 0.0, 0.02, 0.92)
+	_dragon_cutscene_layer.add_child(bot_bar)
+
+	var px_font := UiTheme.load_pixel_font()
+	_dragon_title_lbl = Label.new()
+	_dragon_title_lbl.text = "⚠  ผนึกแห่งความเป็นไปได้แตกสลาย!  ⚠"
+	_dragon_title_lbl.position = Vector2(140, 22)
+	_dragon_title_lbl.custom_minimum_size = Vector2(1000, 56)
+	_dragon_title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dragon_title_lbl.add_theme_font_override("font", px_font)
+	_dragon_title_lbl.add_theme_font_size_override("font_size", 32)
+	_dragon_title_lbl.add_theme_color_override("font_color", Color(1.0, 0.25, 0.30))
+	_dragon_cutscene_layer.add_child(_dragon_title_lbl)
+
+	_dragon_sub_lbl = Label.new()
+	_dragon_sub_lbl.text = "ท้องฟ้าเหนือขบวนรถไฟถูกย้อมด้วยเปลวเพลิงสีเลือด..."
+	_dragon_sub_lbl.position = Vector2(120, 624)
+	_dragon_sub_lbl.custom_minimum_size = Vector2(1040, 72)
+	_dragon_sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dragon_sub_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_dragon_sub_lbl.add_theme_font_override("font", px_font)
+	_dragon_sub_lbl.add_theme_font_size_override("font_size", 24)
+	_dragon_sub_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	_dragon_cutscene_layer.add_child(_dragon_sub_lbl)
 
 	_dragon_node = Node2D.new()
 	var side := 1.0 if player.global_position.x < STAGE_WIDTH - 140.0 else -1.0
-	_dragon_node.position = Vector2(player.global_position.x + side * 140.0, 30.0)
+	_dragon_node.position = Vector2(player.global_position.x + side * 190.0, -40.0)
 	_dragon_node.z_index = 25
 	add_child(_dragon_node)
 
 	_dragon_sprite = AnimatedSprite2D.new()
 	_dragon_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_dragon_sprite.scale = Vector2(2.3, 2.3)
+	_dragon_sprite.scale = Vector2(2.5, 2.5)
 	_dragon_sprite.flip_h = side < 0.0
 	var sf := SpriteFrames.new()
 	var tex := SpriteLoader.load_tex("res://assets/sprites/enemy_dragon.png")
@@ -689,45 +727,67 @@ func _summon_apocalypse_dragon() -> void:
 
 	var lbl := Label.new()
 	lbl.text = "🐉 มังกรแห่งวันสิ้นโลก [HP 999,999]"
-	lbl.position = Vector2(-90, -76)
-	lbl.custom_minimum_size = Vector2(180, 18)
+	lbl.position = Vector2(-95, -82)
+	lbl.custom_minimum_size = Vector2(190, 18)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_override("font", UiTheme.load_pixel_font())
+	lbl.add_theme_font_override("font", px_font)
 	lbl.add_theme_font_size_override("font_size", 10)
 	lbl.add_theme_color_override("font_color", Color(1.0, 0.25, 0.35))
 	_dragon_node.add_child(lbl)
 
-	VfxManager.spawn_vfx("fire_bomb", self, _dragon_node.position, false, 1.15)
-	VfxManager.spawn_vfx("lightning", self, player.global_position + Vector2(0, -18), false, 0.95)
-	player.spawn_floating_text("🐉 มังกรแห่งวันสิ้นโลก!", Color(1.0, 0.22, 0.28))
+	VfxManager.spawn_vfx("lightning", self, player.global_position + Vector2(0, -18), false, 1.0)
 
 
 func _update_apocalypse_dragon(delta: float) -> void:
 	_dragon_phase_timer += delta
 	player.controls_locked = true
+	if camera != null:
+		camera.zoom = camera.zoom.lerp(Vector2(1.75, 1.75), minf(1.0, delta * 2.2))
 	if _dragon_node != null and is_instance_valid(_dragon_node):
 		var side := 1.0 if player.global_position.x < STAGE_WIDTH - 140.0 else -1.0
 		var hover_target := Vector2(player.global_position.x + side * 66.0, FLOOR_Y - 58.0 + sin(_dragon_phase_timer * 6.0) * 6.0)
-		_dragon_node.position = _dragon_node.position.lerp(hover_target, minf(1.0, delta * 3.8))
-	if _dragon_phase_timer >= 1.65 and not _dragon_executed:
+		_dragon_node.position = _dragon_node.position.lerp(hover_target, minf(1.0, delta * 2.8))
+
+	# Cutscene Beat 2: Dragon lands & roars its title
+	if _dragon_phase_timer >= 1.35 and not _dragon_stage2_done:
+		_dragon_stage2_done = true
+		SfxManager.play("skill")
+		trigger_screen_shake(14.0, 0.70)
+		if _dragon_title_lbl != null:
+			_dragon_title_lbl.text = "🐉  มังกรแห่งวันสิ้นโลก (APOCALYPSE DRAGON)  🐉"
+		if _dragon_sub_lbl != null:
+			_dragon_sub_lbl.text = "\"ผู้ฝ่าฝืนกฎเกณฑ์แห่งบทละคร... จงมอดไหม้ไปพร้อมกับความว่างเปล่า!\""
+		if _dragon_node != null:
+			VfxManager.spawn_vfx("fire_bomb", self, _dragon_node.position, false, 1.25)
+			VfxManager.spawn_vfx("mana_burst", self, _dragon_node.position, false, 1.15)
+		player.spawn_floating_text("🐉 มังกรแห่งวันสิ้นโลก!", Color(1.0, 0.22, 0.28))
+
+	# Cutscene Beat 3: Apocalyptic Fire Breath — Forced Instant Death
+	if _dragon_phase_timer >= 2.85 and not _dragon_executed:
 		_dragon_executed = true
 		if _dragon_sprite != null and _dragon_sprite.sprite_frames.has_animation("breath"):
 			_dragon_sprite.play("breath")
+		if _dragon_sub_lbl != null:
+			_dragon_sub_lbl.text = "🔥 เพลิงพิพากษาแห่งวันสิ้นโลก — ไม่สามารถป้องกันหรือหลบหนีได้! 🔥"
 		SfxManager.play("skill")
 		SfxManager.play("hurt")
-		trigger_screen_shake(16.0, 0.65)
-		VfxManager.spawn_vfx("fire_bomb", self, player.global_position + Vector2(0, -16), false, 1.35)
-		VfxManager.spawn_vfx("lightning", self, player.global_position + Vector2(0, -20), false, 1.15)
-		VfxManager.spawn_vfx("ground_slam", self, player.global_position, false, 1.10)
-		VfxManager.spawn_vfx("impact_frame", self, player.global_position + Vector2(0, -16), false, 0.95)
+		trigger_screen_shake(18.0, 0.75)
+		VfxManager.spawn_vfx("fire_bomb", self, player.global_position + Vector2(0, -16), false, 1.45)
+		VfxManager.spawn_vfx("lightning", self, player.global_position + Vector2(0, -20), false, 1.25)
+		VfxManager.spawn_vfx("ground_slam", self, player.global_position, false, 1.20)
+		VfxManager.spawn_vfx("impact_frame", self, player.global_position + Vector2(0, -16), false, 1.05)
 		player.spawn_floating_text("🐉 พิพากษาแห่งวันสิ้นโลก -99999!", Color(1.0, 0.18, 0.24))
 		GameState.shield_hp = 0
 		GameState.hp = 0
 		GameState.hp_mp_changed.emit()
-		var reason := "คุณถูก 'มังกรแห่งวันสิ้นโลก' พิพากษาจนสิ้นชีพ! (อัปเลเวลเกินเพดานบทละครมากเกินไป หรือตรวจพบการโกงเหรียญ)"
+		var reason := "คุณถูก 'มังกรแห่งวันสิ้นโลก' พิพากษาจนสิ้นชีพ! (เลเวลเกินเพดานบทละคร หรือตรวจพบการโกงเหรียญ)"
 		var tw := create_tween()
-		tw.tween_interval(0.75)
-		tw.tween_callback(func(): apocalypse_dragon_killed_player.emit(reason))
+		tw.tween_interval(0.95)
+		tw.tween_callback(func():
+			if _dragon_cutscene_layer != null and is_instance_valid(_dragon_cutscene_layer):
+				_dragon_cutscene_layer.queue_free()
+			apocalypse_dragon_killed_player.emit(reason)
+		)
 
 
 func _process(delta: float) -> void:
@@ -802,54 +862,6 @@ func _process(delta: float) -> void:
 		if _shake_timer <= 0.0:
 			camera.offset = Vector2.ZERO
 			_shake_strength = 0.0
-
-	# Probability Storm Penalty when total stat level exceeds Scenario cap!
-	if player != null and is_instance_valid(player) and ScenarioManager.is_active and GameState.hp > 0:
-		var over_lv := GameState.get_probability_overflow(stage_num)
-		if over_lv > 0:
-			var cur_lv := GameState.get_total_level()
-			var cap_lv := GameState.get_stage_level_cap(stage_num)
-			hazard_status_changed.emit("⚡ [พายุแห่งความเป็นไปได้!] เลเวลเกินเพดาน (Lv.%d/%d) — โดนตรึง & เลือดลดต่อเนื่อง!" % [cur_lv, cap_lv])
-			if not _prob_warned:
-				_prob_warned = true
-				var msg := "[⚡ กำแพงที่สี่สั่นสะเทือน! พายุแห่งความเป็นไปได้กำลังลงทัณฑ์ผู้ฝ่าฝืนเพดานบทละคร!]" if GameState.current_attribute_id == "apocalypse_reader" else "[⚡ คำเตือนจาก Star Stream! เลเวลของคุณเกินเพดานความเป็นไปได้ของบทละครนี้!]"
-				ScenarioManager.constellation_message.emit(msg, 0)
-			# Continuous HP drain scaling with overflow
-			_prob_drain_tick += delta
-			if _prob_drain_tick >= 1.15:
-				_prob_drain_tick = 0.0
-				var drain := 5 + over_lv * 3
-				GameState.hp = maxi(0, GameState.hp - drain)
-				GameState.hp_mp_changed.emit()
-				SfxManager.play("hurt")
-				VfxManager.spawn_vfx("dark_orb", self, player.global_position + Vector2(0, -16), false, 0.35)
-				player.spawn_floating_text("⚡ ความเป็นไปได้ -%d" % drain, Color(0.95, 0.25, 0.98))
-				if GameState.hp <= 0:
-					player.player_died.emit()
-			# Periodic Probability Bind (locks movement!)
-			if _prob_bind_timer > 0.0:
-				_prob_bind_timer -= delta
-				player.controls_locked = true
-				if _prob_bind_timer <= 0.0:
-					player.controls_locked = false
-			else:
-				_prob_bind_cd -= delta
-				if _prob_bind_cd <= 0.0:
-					_prob_bind_cd = maxf(3.2, 5.2 - float(over_lv) * 0.25)
-					_prob_bind_timer = 1.65
-					player.controls_locked = true
-					SfxManager.play("skill")
-					VfxManager.spawn_vfx("lightning", self, player.global_position + Vector2(0, -18), false, 0.72)
-					trigger_screen_shake(5.5, 0.24)
-					player.spawn_floating_text("⚡ ถูกความเป็นไปได้ตรึง! ขยับไม่ได้!", Color(1.0, 0.32, 0.95))
-		else:
-			if _prob_bind_timer > 0.0:
-				_prob_bind_timer = 0.0
-				player.controls_locked = false
-			if _prob_warned:
-				_prob_warned = false
-				hazard_status_changed.emit("")
-			_prob_drain_tick = 0.0
 
 	# Stage 1 Farm mode periodic reinforcements
 	if stage_num == 1 and ScenarioManager.is_farming and player != null:

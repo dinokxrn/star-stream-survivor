@@ -430,7 +430,7 @@ func get_probability_overflow(stage_num: int) -> int:
 
 
 func is_apocalypse_dragon_triggered(stage_num: int) -> bool:
-	if get_probability_overflow(stage_num) >= 5:
+	if get_probability_overflow(stage_num) >= 1:
 		return true
 	if coins > _coin_audit_cap + 300 or coins >= 12000:
 		return true

@@ -223,13 +223,13 @@ func _show_attribute_window() -> void:
 	var lv_over := GameState.get_probability_overflow(ScenarioManager.current_stage)
 	var prob_lbl := Label.new()
 	if lv_over > 0:
-		prob_lbl.text = "⚡ ระดับพลังรวม: Lv.%d / เพดานบทละครที่ %d: Lv.%d  —  เกินเพดาน (+%d)! พายุความเป็นไปได้กำลังลงโทษ (ขยับไม่ได้ + เลือดลดต่อเนื่อง)!" % [lv_now, ScenarioManager.current_stage, lv_cap, lv_over]
-		prob_lbl.add_theme_color_override("font_color", Color(1.0, 0.32, 0.65))
+		prob_lbl.text = "🐉 ระดับพลังรวม: Lv.%d / เพดานบทละครที่ %d: Lv.%d  —  เกินเพดานแล้ว! 'มังกรแห่งวันสิ้นโลก' กำลังตื่นขึ้น!" % [lv_now, ScenarioManager.current_stage, lv_cap]
+		prob_lbl.add_theme_color_override("font_color", Color(1.0, 0.25, 0.35))
 	elif lv_now == lv_cap:
-		prob_lbl.text = "⚠ ระดับพลังรวม: Lv.%d / เพดานบทละครที่ %d: Lv.%d  —  ถึงเพดานแล้ว! อัปเกินจะโดนบทลงโทษแห่งความเป็นไปได้" % [lv_now, ScenarioManager.current_stage, lv_cap]
+		prob_lbl.text = "⚠ ระดับพลังรวม: Lv.%d / เพดานบทละครที่ %d: Lv.%d  —  ถึงเพดานแล้ว! หากอัปเกิน 'มังกรแห่งวันสิ้นโลก' จะออกมาพิพากษาทันที" % [lv_now, ScenarioManager.current_stage, lv_cap]
 		prob_lbl.add_theme_color_override("font_color", Color(1.0, 0.80, 0.25))
 	else:
-		prob_lbl.text = "ระดับพลังรวม: Lv.%d / เพดานความเป็นไปได้บทละครที่ %d: Lv.%d (อัปเพิ่มได้อีก %d Lv อย่างปลอดภัย)" % [lv_now, ScenarioManager.current_stage, lv_cap, lv_cap - lv_now]
+		prob_lbl.text = "ระดับพลังรวม: Lv.%d / เพดานบทละครที่ %d: Lv.%d (อัปเพิ่มได้อีก %d Lv ก่อนมังกรแห่งวันสิ้นโลกจะตื่น)" % [lv_now, ScenarioManager.current_stage, lv_cap, lv_cap - lv_now]
 		prob_lbl.add_theme_color_override("font_color", Color(0.58, 0.92, 1.0))
 	prob_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	prob_lbl.add_theme_font_size_override("font_size", 14)
