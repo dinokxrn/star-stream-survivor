@@ -851,7 +851,7 @@ func _update_apocalypse_dragon(delta: float) -> void:
 		GameState.shield_hp = 0
 		GameState.hp = 0
 		GameState.hp_mp_changed.emit()
-		var reason := "คุณถูก 'มังกรแห่งวันสิ้นโลก' พิพากษาจนสิ้นชีพ! (เลเวลเกินเพดานบทละคร หรือตรวจพบการโกงเหรียญ)"
+		var reason := "คุณถูก 'มังกรแห่งวันสิ้นโลก' พิพากษาจนสิ้นชีพ! (เลเวลเกินเพดานบทละคร)"
 		var tw := create_tween()
 		tw.tween_interval(0.95)
 		tw.tween_callback(func():
@@ -902,7 +902,7 @@ func _process(delta: float) -> void:
 				fl = 0.22
 			_flicker_overlay.color = Color(0.02, 0.05, 0.12, fl)
 
-	# Apocalypse Dragon Forced Execution Trigger (heavy over-leveling >= +5 OR coin cheating!)
+	# Apocalypse Dragon Forced Execution Trigger (over-leveling above scenario cap)
 	if player != null and is_instance_valid(player) and ScenarioManager.is_active and GameState.hp > 0:
 		if not _dragon_spawned and GameState.is_apocalypse_dragon_triggered(stage_num):
 			_summon_apocalypse_dragon()

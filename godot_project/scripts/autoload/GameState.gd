@@ -60,7 +60,6 @@ var parries_landed: int = 0
 var total_coins_earned: int = 0
 var perfect_dodges: int = 0
 var enemies_defeated: int = 0
-var _coin_audit_cap: int = 1200
 var forced_dragon_death: bool = false
 var story_route: String = "wanderer" # wanderer, kingless, tyrant, savior
 var karma_savior: int = 0
@@ -160,7 +159,6 @@ func start_new_run(attr_id: String) -> void:
 
 	coins = int(current_attribute.get("bonus_coins", 0))
 	total_coins_earned = coins
-	_coin_audit_cap = maxi(1200, coins + 600)
 	forced_dragon_death = false
 	story_route = "wanderer"
 	karma_savior = 0
@@ -524,11 +522,7 @@ func apply_story_choice(choice_id: String) -> String:
 
 
 func is_apocalypse_dragon_triggered(stage_num: int) -> bool:
-	if get_probability_overflow(stage_num) >= 1:
-		return true
-	if coins > _coin_audit_cap + 300 or coins >= 12000:
-		return true
-	return false
+	return get_probability_overflow(stage_num) >= 1
 
 
 func get_skill_damage(skill_id: String) -> int:
@@ -590,7 +584,6 @@ func add_coins(amount: int, _reason: String = "") -> void:
 		return
 	coins += amount
 	total_coins_earned += amount
-	_coin_audit_cap += amount
 	coins_changed.emit(coins, amount)
 
 
@@ -901,7 +894,6 @@ func load_game() -> int:
 	for cp in data.get("companions", []):
 		companions.append(String(cp))
 	total_coins_earned = int(data.get("total_coins_earned", 0))
-	_coin_audit_cap = maxi(1200, total_coins_earned + 600)
 	forced_dragon_death = false
 	enemies_defeated = int(data.get("enemies_defeated", 0))
 	parries_landed = int(data.get("parries_landed", 0))
