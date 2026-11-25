@@ -64,7 +64,8 @@ func _ready() -> void:
 	_ui_layer.add_child(_modals)
 	_modals.stat_upgraded.connect(_on_stat_upgraded)
 	_modals.next_stage_requested.connect(_open_boon_before_next_stage)
-	_modals.boon_picked_continue.connect(_advance_next_stage)
+	_modals.boon_picked_continue.connect(_open_route_choice_after_boon)
+	_modals.route_choice_selected.connect(_on_route_choice_selected)
 	_modals.restart_stage_requested.connect(_restart_current_stage)
 	_modals.reroll_new_game_requested.connect(_show_roll_screen)
 
@@ -161,6 +162,23 @@ func _start_stage(stage_num: int) -> void:
 
 func _open_boon_before_next_stage() -> void:
 	_modals.show_boon_selection()
+
+
+func _open_route_choice_after_boon() -> void:
+	if ScenarioManager.current_stage < GameData.MAX_CHAPTER:
+		_modals.show_story_route_choice(ScenarioManager.current_stage)
+	else:
+		_advance_next_stage()
+
+
+func _on_route_choice_selected(target_stage: int, choice_id: String) -> void:
+	var note := GameState.apply_story_choice(choice_id)
+	var next_s := clampi(target_stage, 1, GameData.MAX_CHAPTER)
+	if NetworkManager.is_online and NetworkManager.is_host:
+		NetworkManager.send_stage_start(next_s)
+	_start_stage(next_s)
+	if note != "":
+		ScenarioManager.constellation_message.emit("[%s]" % note, 0)
 
 
 func _advance_next_stage() -> void:

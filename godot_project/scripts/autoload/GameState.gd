@@ -62,6 +62,10 @@ var perfect_dodges: int = 0
 var enemies_defeated: int = 0
 var _coin_audit_cap: int = 1200
 var forced_dragon_death: bool = false
+var story_route: String = "wanderer" # wanderer, kingless, tyrant, savior
+var karma_savior: int = 0
+var karma_ruthless: int = 0
+var story_flags: Array[String] = []
 
 
 func _ready() -> void:
@@ -158,6 +162,10 @@ func start_new_run(attr_id: String) -> void:
 	total_coins_earned = coins
 	_coin_audit_cap = maxi(1200, coins + 600)
 	forced_dragon_death = false
+	story_route = "wanderer"
+	karma_savior = 0
+	karma_ruthless = 0
+	story_flags.clear()
 	perfect_dodges = 0
 	enemies_defeated = 0
 	selected_sponsor_id = ""
@@ -449,6 +457,70 @@ func get_stage_level_cap(stage_num: int) -> int:
 
 func get_probability_overflow(stage_num: int) -> int:
 	return maxi(0, get_total_level() - get_stage_level_cap(stage_num))
+
+
+func apply_story_choice(choice_id: String) -> String:
+	if not (choice_id in story_flags):
+		story_flags.append(choice_id)
+	match choice_id:
+		"route_dongho_allies":
+			karma_savior += 1
+			story_route = "savior"
+			add_coins(150, "story_choice")
+			hp = get_max_hp()
+			mp = get_max_mp()
+			hp_mp_changed.emit()
+			return "เลือกเดินตามกลุ่มตัวเอกสู่สะพานตงโฮ (+150 เหรียญ + ฟื้น HP/MP เต็ม)"
+		"route_bihyung_deal":
+			karma_ruthless += 1
+			add_coins(350, "story_choice")
+			flag_atk_bonus += 4
+			stats_changed.emit()
+			return "ทำสัญญาลับกับโดแกบีบีฮยอง! (+350 เหรียญ +4 ATK ถาวร)"
+		"route_rush_greenzone":
+			story_route = "kingless"
+			add_coins(400, "story_choice")
+			return "พุ่งลัดข้ามสะพานไปชิง Green Zone ก่อนใคร! (+400 เหรียญ)"
+		"route_destroy_throne":
+			story_route = "kingless"
+			karma_savior += 2
+			flag_atk_bonus += 15
+			add_coins(800, "story_choice")
+			stats_changed.emit()
+			return "★ ทำลาย 'บัลลังก์สัมบูรณ์' ทิ้ง! ปลดล็อกเส้นทาง 'ราชาไร้บัลลังก์' (+15 ATK ถาวร +800 เหรียญ)"
+		"route_claim_throne":
+			story_route = "tyrant"
+			karma_ruthless += 2
+			add_coins(1500, "story_choice")
+			flag_atk_bonus += 10
+			stats_changed.emit()
+			return "👑 ขึ้นครอง 'บัลลังก์สัมบูรณ์'! ปลดล็อกเส้นทาง 'ทรราชแห่งโซล' (+1,500 เหรียญ +10 ATK)"
+		"route_ambush_disaster":
+			has_gas_mask = true
+			add_coins(550, "story_choice")
+			inventory_changed.emit()
+			return "⚡ ดักลอบโจมตี 'หายนะแห่งคำถาม' ก่อนตื่น! (+550 เหรียญ + หน้ากากกันพิษ)"
+		"route_steady_march":
+			karma_savior += 1
+			hp = get_max_hp()
+			mp = get_max_mp()
+			add_consumable("medkit", 1)
+			hp_mp_changed.emit()
+			return "เดินทัพตามเส้นทางหลักอย่างรอบคอบ (ฟื้น HP/MP เต็ม + ชุดปฐมพยาบาล x1)"
+		"route_rebel_constellations":
+			karma_ruthless += 1
+			story_route = "kingless" if story_route == "wanderer" else story_route
+			add_coins(500, "story_choice")
+			flag_atk_bonus += 5
+			stats_changed.emit()
+			return "ท้าทายกลุ่มดาวกลางแชนแนล! (+500 เหรียญ +5 ATK ถาวร)"
+		"route_skip_ahead":
+			add_coins(900, "story_choice")
+			flag_atk_bonus += 8
+			stats_changed.emit()
+			return "⚡ เลือกเส้นทางลัดสุดอันตราย! ก้าวกระโดดข้ามบท (+900 เหรียญ +8 ATK ถาวร)"
+		_:
+			return ""
 
 
 func is_apocalypse_dragon_triggered(stage_num: int) -> bool:
@@ -749,6 +821,10 @@ func save_game(stage_num: int) -> bool:
 		"enemies_defeated": enemies_defeated,
 		"parries_landed": parries_landed,
 		"perfect_dodges": perfect_dodges,
+		"story_route": story_route,
+		"karma_savior": karma_savior,
+		"karma_ruthless": karma_ruthless,
+		"story_flags": Array(story_flags),
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -830,6 +906,12 @@ func load_game() -> int:
 	enemies_defeated = int(data.get("enemies_defeated", 0))
 	parries_landed = int(data.get("parries_landed", 0))
 	perfect_dodges = int(data.get("perfect_dodges", 0))
+	story_route = String(data.get("story_route", "wanderer"))
+	karma_savior = int(data.get("karma_savior", 0))
+	karma_ruthless = int(data.get("karma_ruthless", 0))
+	story_flags.clear()
+	for sf in data.get("story_flags", []):
+		story_flags.append(String(sf))
 	stats_changed.emit()
 	hp_mp_changed.emit()
 	inventory_changed.emit()

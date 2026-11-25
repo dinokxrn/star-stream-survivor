@@ -6,6 +6,7 @@ const GameData = preload("res://scripts/data/GameData.gd")
 signal stat_upgraded
 signal next_stage_requested
 signal boon_picked_continue
+signal route_choice_selected(target_stage: int, choice_id: String)
 signal restart_stage_requested
 signal reroll_new_game_requested
 signal modal_state_changed(is_open: bool)
@@ -776,6 +777,77 @@ func show_boon_selection() -> void:
 	_open_panel("boon", panel)
 
 
+func show_story_route_choice(cleared_stage: int) -> void:
+	var px_font := UiTheme.load_pixel_font()
+	var next_s := mini(GameData.MAX_CHAPTER, cleared_stage + 1)
+	var skip_s := mini(GameData.MAX_CHAPTER, cleared_stage + 2)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(820, 480)
+	panel.add_theme_stylebox_override("panel", UiTheme.make_panel_style(Color(0.32, 0.86, 1.0), UiTheme.COL_BG, 3))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	panel.add_child(v)
+
+	var h := Label.new()
+	h.text = "[ ★ ทางแยกแห่งชะตากรรม — เลือกเส้นทางหลังบทที่ %d ★ ]" % cleared_stage
+	h.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	h.add_theme_font_override("font", px_font)
+	h.add_theme_font_size_override("font_size", 24)
+	h.add_theme_color_override("font_color", UiTheme.COL_GOLD)
+	v.add_child(h)
+
+	var sub := Label.new()
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.add_theme_font_override("font", px_font)
+	sub.add_theme_font_size_override("font_size", 17)
+	sub.add_theme_color_override("font_color", Color(0.80, 0.94, 1.0))
+
+	var options: Array = []
+	if cleared_stage == 1:
+		sub.text = "ประตูขบวนรถไฟ 3707 เปิดออกสู่ความมืดเหนือสะพานตงโฮ... คุณจะเลือกเดินเส้นทางไหนในโลกของนิยายเรื่องนี้?"
+		options = [
+			["🛡 เดินตามกลุ่มตัวเอกสู่สะพานตงโฮ (ไปบทที่ 2)", "สายผู้กอบกู้: ฟื้น HP/MP เต็ม + รับ 150 เหรียญ", 2, "route_dongho_allies", Color(0.08, 0.30, 0.42, 0.96)],
+			["😈 ทำสัญญาลับกับโดแกบีบีฮยอง (ไปบทที่ 2)", "สายโกงระบบ: รับ +350 เหรียญ +4 ATK ถาวรทันที!", 2, "route_bihyung_deal", Color(0.32, 0.12, 0.36, 0.96)],
+			["⚡ พุ่งลัดข้ามสะพานไปชิง Green Zone ก่อนใคร! (ข้ามไปบทที่ 3)", "เส้นทางลัดเสี่ยงตาย: ข้ามไปบทที่ 3 ทันที + รับ 400 เหรียญ", 3, "route_rush_greenzone", Color(0.34, 0.22, 0.05, 0.96)],
+		]
+	elif cleared_stage == 4:
+		sub.text = "เบื้องหน้าของคุณคือ 'บัลลังก์สัมบูรณ์' ที่เหล่ากลุ่มดาวเฝ้าจับตามอง... คุณจะทำลายมันแบบคิมดกจา หรือจะนั่งครองอำนาจ?"
+		options = [
+			["🔥 ทำลาย 'บัลลังก์สัมบูรณ์' ทิ้ง! (เส้นทางราชาไร้บัลลังก์ → บทที่ 5)", "เหมือนในนิยาย! +15 ATK ถาวร + 800 เหรียญ + ปลดล็อกฉากจบลับ", 5, "route_destroy_throne", Color(0.10, 0.32, 0.46, 0.96)],
+			["👑 นั่งครอง 'บัลลังก์สัมบูรณ์'! (เส้นทางทรราชแห่งโซล → บทที่ 5)", "อำนาจเบ็ดเสร็จ: +1,500 เหรียญ +10 ATK ถาวร", 5, "route_claim_throne", Color(0.42, 0.10, 0.16, 0.96)],
+			["⚡ ลัดไปดักสังหาร 'หายนะแห่งคำถาม' ก่อนตื่น! (ข้ามไปบทที่ 6)", "เส้นทางลัด: ข้ามไปบทที่ 6 + รับ 550 เหรียญ + หน้ากากกันพิษฟรี", 6, "route_ambush_disaster", Color(0.32, 0.24, 0.06, 0.96)],
+		]
+	else:
+		var next_title: String = GameData.CHAPTERS.get(next_s, {}).get("title", "บทละครที่ %d" % next_s)
+		sub.text = "เหล่ากลุ่มดาวกำลังรอดูการตัดสินใจของคุณ! เส้นทางที่เลือกจะเปลี่ยนโบนัสและฉากจบในบทที่ 20"
+		options = [
+			["🛡 เส้นทางหลัก: มุ่งหน้าสู่ %s" % next_title, "สายผู้กอบกู้: ฟื้น HP/MP เต็ม + ชุดปฐมพยาบาล x1", next_s, "route_steady_march", Color(0.08, 0.28, 0.40, 0.96)],
+			["🔥 ท้าทายกลุ่มดาวกลางแชนแนลแล้วบุก %s" % next_title, "สายราชาไร้บัลลังก์: +500 เหรียญ +5 ATK ถาวร", next_s, "route_rebel_constellations", Color(0.30, 0.14, 0.34, 0.96)],
+		]
+		if cleared_stage <= GameData.MAX_CHAPTER - 2:
+			var skip_title: String = GameData.CHAPTERS.get(skip_s, {}).get("title", "บทละครที่ %d" % skip_s)
+			options.append(["⚡ เส้นทางลัดเสี่ยงตาย: ข้ามไปบุก %s!" % skip_title, "ท้าทายชะตากรรม: ข้าม 1 บท + รับ 900 เหรียญ +8 ATK ถาวร", skip_s, "route_skip_ahead", Color(0.36, 0.22, 0.05, 0.96)])
+
+	v.add_child(sub)
+
+	for opt in options:
+		var btn := Button.new()
+		btn.text = "%s\n   ↳ %s" % [opt[0], opt[1]]
+		btn.custom_minimum_size = Vector2(740, 74)
+		btn.add_theme_stylebox_override("normal", UiTheme.make_button_style(opt[4], UiTheme.COL_BORDER))
+		var t_stage: int = int(opt[2])
+		var cid: String = String(opt[3])
+		btn.pressed.connect(func():
+			close_modal()
+			route_choice_selected.emit(t_stage, cid)
+		)
+		v.add_child(btn)
+
+	_open_panel("route_choice", panel)
+
+
 func show_post_clear_choice() -> void:
 	var px_font := UiTheme.load_pixel_font()
 	var can_secret := ScenarioManager.can_trigger_main_cast_secret()
@@ -870,7 +942,14 @@ func show_result_modal(victory: bool, fail_reason: String) -> void:
 	var sp_name: String = GameData.SPONSORS.get(GameState.selected_sponsor_id, {}).get("name", "-")
 	var end_desc := ""
 	if ScenarioManager.ending_type == "campaign_victory":
-		end_desc = "คุณพิชิตครบทั้ง 20 บทละครและโค่น 'มหาเทพแห่งปราสาทมืด' ลงได้สำเร็จ! โดมแห่งกรุงโซลถูกปลดปล่อย และชื่อของคุณถูกจารึกเป็นเรื่องเล่าตำนานแห่ง Star Stream!\n\n"
+		var route_ending := "คุณพิชิตครบทั้ง 20 บทละครและโค่น 'มหาเทพแห่งปราสาทมืด' ลงได้สำเร็จ!"
+		if GameState.story_route == "kingless":
+			route_ending = "★ [ฉากจบลับ: ราชาไร้บัลลังก์ผู้ฉีกชะตากรรม] ★\nคุณทำลายบัลลังก์สัมบูรณ์ ท้าทายเหล่ากลุ่มดาว และปลดปล่อยโดมกรุงโซลด้วยสองมือของตัวเอง!"
+		elif GameState.story_route == "tyrant":
+			route_ending = "👑 [ฉากจบ: จักรพรรดิทรราชแห่งโดมกรุงโซล] 👑\nคุณครองบัลลังก์สัมบูรณ์และสยบมหาเทพแห่งปราสาทมืด กรุงโซลทั้งหมดก้มหัวให้แก่คุณ!"
+		elif GameState.story_route == "savior":
+			route_ending = "🛡 [ฉากจบ: ผู้กอบกู้แห่งสถานีรถไฟใต้ดิน] 🛡\nคุณปกป้องผู้รอดชีวิตและคู่หูจนถึงบทสรุปที่ 20 แสงสว่างกลับคืนสู่กรุงโซลอีกครั้ง!"
+		end_desc = "%s\n\n" % route_ending
 	elif ScenarioManager.ending_type == "chapter_clear":
 		var cd_res: Dictionary = GameData.CHAPTERS.get(ScenarioManager.current_stage, {})
 		end_desc = "คุณโค่น '%s' และพิชิตบทละครที่ %d สำเร็จ! (+%d เหรียญ)\n\n" % [String(cd_res.get("boss_name", "บอส")), ScenarioManager.current_stage, int(cd_res.get("reward_coins", 1500))]
