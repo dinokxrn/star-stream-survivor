@@ -401,6 +401,13 @@ func refresh() -> void:
 			var f_txt := "• กำจัดผู้เฝ้าธงแล้วยึดธง (%d / 2)" % ScenarioManager.stage4_flags_captured
 			var k_txt := "✓ โค่นทรราชผู้ชิงบัลลังก์ (3 เฟส) แล้ว!" if ScenarioManager.stage4_boss_dead else "• โค่นบอสใหญ่ 3 เฟส: ทรราชผู้ชิงบัลลังก์"
 			_obj_lbl.text = "%s\n%s" % [f_txt, k_txt]
+		_:
+			var cd: Dictionary = GameData.CHAPTERS.get(ScenarioManager.current_stage, {})
+			var bname: String = String(cd.get("boss_name", "บอสประจำบท"))
+			var f_part := "• ยึดธง/ผนึก (%d/%d)  " % [ScenarioManager.chapter_flags, ScenarioManager.chapter_flags_req] if ScenarioManager.chapter_flags_req > 0 else ""
+			var k_part := "• กำจัดศัตรู (%d/%d)" % [ScenarioManager.chapter_kills, ScenarioManager.chapter_kills_req]
+			var b_part := "✓ โค่น %s แล้ว!" % bname if ScenarioManager.chapter_boss_dead else "• โค่นบอส: %s" % bname
+			_obj_lbl.text = "%s%s\n%s" % [f_part, k_part, b_part]
 
 	var keys := ["Q", "V"]
 	if _coop_lbl != null:

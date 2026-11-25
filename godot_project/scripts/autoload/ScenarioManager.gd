@@ -39,6 +39,13 @@ var stage3_sub_rescue_done: bool = false
 var stage4_flags_captured: int = 0
 var stage4_boss_dead: bool = false
 
+# Generic Chapter 5..20 progress
+var chapter_kills: int = 0
+var chapter_kills_req: int = 8
+var chapter_flags: int = 0
+var chapter_flags_req: int = 0
+var chapter_boss_dead: bool = false
+
 # Sudden Dokkaebi Events
 var sudden_event_active: bool = false
 var sudden_event_kind: String = "" # untouchable, elite_hunt, blackout
@@ -72,7 +79,14 @@ func _on_fable_unlocked(fdata: Dictionary) -> void:
 
 
 func get_stage_title() -> String:
+	if GameData.CHAPTERS.has(current_stage):
+		return String(GameData.CHAPTERS[current_stage]["title"])
 	return String(STAGE_TITLES.get(current_stage, STAGE_TITLES[1]))
+
+
+func get_chapter_data(stage_num: int = -1) -> Dictionary:
+	var s := current_stage if stage_num < 0 else stage_num
+	return GameData.CHAPTERS.get(s, {})
 
 
 func start_scenario_1() -> void:
@@ -80,7 +94,7 @@ func start_scenario_1() -> void:
 
 
 func start_scenario(stage_num: int) -> void:
-	current_stage = clampi(stage_num, 1, 4)
+	current_stage = clampi(stage_num, 1, GameData.MAX_CHAPTER)
 	is_active = true
 	condition_met = false
 	is_cleared = false
@@ -135,6 +149,20 @@ func start_scenario(stage_num: int) -> void:
 		GameState.mp = GameState.get_max_mp()
 		GameState.hp_mp_changed.emit()
 		constellation_message.emit("[บทละครหลัก #4 เริ่มต้น! กำจัดผู้เฝ้าธงเพื่อยึดธง 2 จุด และโค่นทรราช 3 เฟส!]", 0)
+	elif GameData.CHAPTERS.has(current_stage):
+		var cd: Dictionary = GameData.CHAPTERS[current_stage]
+		time_remaining = float(cd.get("time_limit", 300.0))
+		chapter_kills = 0
+		chapter_kills_req = int(cd.get("kills_req", 8))
+		chapter_flags = 0
+		chapter_flags_req = int(cd.get("flags_req", 0))
+		chapter_boss_dead = false
+		GameState.stage_heals_bought = 0
+		GameState.flag_atk_bonus = 0
+		GameState.hp = mini(GameState.get_max_hp(), GameState.hp + int(round(float(GameState.get_max_hp()) * 0.45)))
+		GameState.mp = GameState.get_max_mp()
+		GameState.hp_mp_changed.emit()
+		constellation_message.emit("[%s เริ่มต้น! โค่น '%s'!]" % [cd["title"], cd["boss_name"]], 0)
 
 	scenario_updated.emit()
 
@@ -225,6 +253,12 @@ func register_enemy_killed(enemy_type: String, is_human: bool) -> void:
 		if enemy_type == "boss_king":
 			stage4_boss_dead = true
 			_try_finish_stage_4()
+	elif current_stage >= 5:
+		chapter_kills += 1
+		if enemy_type.begins_with("boss"):
+			chapter_boss_dead = true
+		scenario_updated.emit()
+		_try_finish_dynamic_chapter()
 
 
 func complete_sub_rescue() -> void:
@@ -291,15 +325,25 @@ func complete_stage3_defense() -> void:
 
 
 func register_stage4_flag_captured() -> void:
-	if current_stage != 4 or is_cleared:
+	if is_cleared:
 		return
-	stage4_flags_captured += 1
-	GameState.flag_atk_bonus += 6
-	GameState.add_coins(200, "stage4_flag")
-	GameState.stats_changed.emit()
-	constellation_message.emit("[ยึดธงสถานีสำเร็จ (%d/2)! พลังโจมตีเพิ่ม +6 และรับ 200 เหรียญ]" % stage4_flags_captured, 200)
-	scenario_updated.emit()
-	_try_finish_stage_4()
+	if current_stage == 4:
+		stage4_flags_captured += 1
+		GameState.flag_atk_bonus += 6
+		GameState.add_coins(200, "stage4_flag")
+		GameState.stats_changed.emit()
+		constellation_message.emit("[ยึดธงสถานีสำเร็จ (%d/2)! พลังโจมตีเพิ่ม +6 และรับ 200 เหรียญ]" % stage4_flags_captured, 200)
+		scenario_updated.emit()
+		_try_finish_stage_4()
+	elif current_stage >= 5 and chapter_flags_req > 0:
+		chapter_flags += 1
+		GameState.flag_atk_bonus += 8
+		var fbonus := 250 + current_stage * 20
+		GameState.add_coins(fbonus, "chapter_flag")
+		GameState.stats_changed.emit()
+		constellation_message.emit("[ทำลายผนึก/ยึดธงสำเร็จ (%d/%d)! +8 ATK & +%d เหรียญ]" % [chapter_flags, chapter_flags_req, fbonus], fbonus)
+		scenario_updated.emit()
+		_try_finish_dynamic_chapter()
 
 
 func _try_finish_stage_4() -> void:
@@ -310,11 +354,32 @@ func _try_finish_stage_4() -> void:
 		is_active = false
 		condition_met = true
 		clear_path = "stage4_king"
-		ending_type = "campaign_victory"
+		ending_type = "stage4_clear"
 		GameState.add_coins(1200, "stage4_clear")
-		constellation_message.emit("[★ บทละครหลัก #4 เสร็จสมบูรณ์! คุณได้รับการยอมรับในฐานะ 'ราชาแห่งตู้ 3707'! (+1,200 เหรียญ)]", 1200)
+		constellation_message.emit("[★ บทละครหลัก #4 เสร็จสมบูรณ์! ปลดล็อกบทที่ 5: บัลลังก์สัมบูรณ์! (+1,200 เหรียญ)]", 1200)
 		scenario_updated.emit()
-		scenario_exited.emit("campaign_victory")
+		scenario_exited.emit("stage4_clear")
+
+
+func _try_finish_dynamic_chapter() -> void:
+	if current_stage < 5 or is_cleared:
+		return
+	if chapter_boss_dead and chapter_kills >= chapter_kills_req and chapter_flags >= chapter_flags_req:
+		is_cleared = true
+		is_active = false
+		condition_met = true
+		clear_path = "chapter_%d" % current_stage
+		var is_final := (current_stage >= GameData.MAX_CHAPTER)
+		ending_type = "campaign_victory" if is_final else "chapter_clear"
+		var cd: Dictionary = GameData.CHAPTERS.get(current_stage, {})
+		var rew := int(cd.get("reward_coins", 1500))
+		GameState.add_coins(rew, "chapter_%d_clear" % current_stage)
+		if is_final:
+			constellation_message.emit("[★★★ พิชิตครบทั้ง 20 บทละครแห่งโดมกรุงโซล! คุณคือผู้พิชิตบทละครที่แท้จริง! (+%d เหรียญ) ★★★]" % rew, rew)
+		else:
+			constellation_message.emit("[★ บทละครหลัก #%d เสร็จสมบูรณ์! (+%d เหรียญ)]" % [current_stage, rew], rew)
+		scenario_updated.emit()
+		scenario_exited.emit(ending_type)
 
 
 func complete_hidden_bug_box() -> void:

@@ -164,7 +164,7 @@ func _open_boon_before_next_stage() -> void:
 
 
 func _advance_next_stage() -> void:
-	var next_s := mini(4, ScenarioManager.current_stage + 1)
+	var next_s := mini(GameData.MAX_CHAPTER, ScenarioManager.current_stage + 1)
 	if NetworkManager.is_online and NetworkManager.is_host:
 		NetworkManager.send_stage_start(next_s)
 	_start_stage(next_s)

@@ -169,7 +169,16 @@ func _initialize() -> void:
 	_assert_eq(sm.stage4_flags_captured, 2, "Both flags captured in Stage 4")
 	_assert_eq(gs.flag_atk_bonus, 12, "2 captured flags grant +12 ATK bonus")
 	sm.register_enemy_killed("boss_king", false)
-	_assert_eq(sm.ending_type, "campaign_victory", "Defeating King Boss with 2 flags finishes campaign")
+	_assert_eq(sm.ending_type, "stage4_clear", "Defeating King Boss with 2 flags clears Stage 4")
+	_assert_eq(GameData.MAX_CHAPTER, 20, "Campaign has 20 Seoul-Arc chapters")
+	_assert_eq(GameData.CHAPTERS.size(), 16, "Chapters 5..20 data present")
+	sm.start_scenario(20)
+	sm.register_stage4_flag_captured()
+	sm.register_stage4_flag_captured()
+	for _k in 14:
+		sm.register_enemy_killed("frenzy", false)
+	sm.register_enemy_killed("boss_king", false)
+	_assert_eq(sm.ending_type, "campaign_victory", "Clearing Chapter 20 finishes the 20-chapter Seoul campaign")
 
 	# 6e. Channel Hype Rank, Star Stream Boons, and Sudden Dokkaebi Events
 	gs.start_new_run("office_worker")

@@ -62,7 +62,7 @@ var _dragon_executed: bool = false
 
 
 func build_stage(p_stage_num: int = 1) -> void:
-	stage_num = clampi(p_stage_num, 1, 4)
+	stage_num = clampi(p_stage_num, 1, GameData.MAX_CHAPTER)
 
 	# 1. Stage-specific pixel-art background
 	var bg_map := {
@@ -71,7 +71,11 @@ func build_stage(p_stage_num: int = 1) -> void:
 		3: "res://assets/sprites/stage3_station.png",
 		4: "res://assets/sprites/stage4_throne.png",
 	}
-	var bg_tex := SpriteLoader.load_tex(String(bg_map[stage_num]))
+	var bg_idx := stage_num
+	if stage_num > 4:
+		var cd_bg: Dictionary = GameData.CHAPTERS.get(stage_num, {})
+		bg_idx = clampi(int(cd_bg.get("bg_idx", 4)), 1, 4)
+	var bg_tex := SpriteLoader.load_tex(String(bg_map[bg_idx]))
 	for i in NUM_CARS:
 		var sp := Sprite2D.new()
 		sp.texture = bg_tex
@@ -139,6 +143,9 @@ func build_stage(p_stage_num: int = 1) -> void:
 		4:
 			_build_stage_4()
 			SfxManager.play_bgm("bgm_boss")
+		_:
+			_build_dynamic_chapter(stage_num)
+			SfxManager.play_bgm("bgm_boss" if stage_num >= 13 else "bgm_battle")
 
 	for cid in GameState.companions:
 		_spawn_companion(cid, player.global_position + Vector2(-26.0, 0))
@@ -437,6 +444,66 @@ func _build_stage_2() -> void:
 	el2b.make_elite(false)
 	_spawn_enemy("mage", Vector2(1210, FLOOR_Y))
 	_spawn_enemy("boss_bridge", Vector2(1370, FLOOR_Y))
+
+
+func _build_dynamic_chapter(s_num: int) -> void:
+	var cd: Dictionary = GameData.CHAPTERS.get(s_num, {})
+	var mode: String = String(cd.get("mode", "assault"))
+	var flags_req: int = int(cd.get("flags_req", 0))
+	var kills_req: int = int(cd.get("kills_req", 8))
+
+	# Unique atmospheric chapter sky tint overlay
+	var tint_rect := ColorRect.new()
+	tint_rect.size = Vector2(STAGE_WIDTH, 270)
+	tint_rect.color = cd.get("tint", Color(0.15, 0.05, 0.22, 0.16))
+	tint_rect.z_index = -3
+	add_child(tint_rect)
+
+	# Fog visual band if fog chapter
+	if mode == "fog":
+		var fog := ColorRect.new()
+		fog.position = Vector2(FOG_MIN_X, 0)
+		fog.size = Vector2(FOG_MAX_X - FOG_MIN_X, 270)
+		fog.color = Color(0.18, 0.72, 0.34, 0.18)
+		fog.z_index = 12
+		add_child(fog)
+		if not GameState.has_gas_mask:
+			_add_interactable("gas_mask_crate", "[F] เก็บหน้ากากกันพิษ", Vector2(310, FLOOR_Y))
+
+	# Guardian-locked Flags / Seals if flags chapter
+	if flags_req >= 2:
+		_add_interactable("king_flag", "[F] ทำลายผนึก/ยึดธง (1/2)", Vector2(490, FLOOR_Y))
+		_add_interactable("king_flag", "[F] ทำลายผนึก/ยึดธง (2/2)", Vector2(1010, FLOOR_Y))
+
+	# Spawn scaled regular & elite enemies across the stage
+	var pool := ["frenzy", "charger", "thrower", "mage", "brute"]
+	var num_mobs := maxi(6, mini(12, kills_req))
+	var step_x := 960.0 / float(num_mobs)
+	for i in num_mobs:
+		var arch: String = pool[(s_num + i * 2) % pool.size()]
+		var ex := 260.0 + float(i) * step_x
+		var mob := _spawn_enemy(arch, Vector2(ex, FLOOR_Y))
+		if i % 3 == 2 or s_num >= 12:
+			mob.make_elite(s_num >= 16 and i % 4 == 0)
+		var extra_scale := 1.0 + float(s_num - 4) * 0.22
+		mob.max_hp = int(round(float(mob.max_hp) * extra_scale))
+		mob.hp = mob.max_hp
+		mob.attack_damage = int(round(float(mob.attack_damage) * (1.0 + float(s_num - 4) * 0.12)))
+
+	# Spawn Chapter Boss with custom ORV Seoul-Arc name, HP, and ATK!
+	var boss := _spawn_enemy("boss_king", Vector2(1370, FLOOR_Y))
+	boss.max_hp = int(cd.get("boss_hp", 2600 + (s_num - 5) * 600))
+	boss.hp = boss.max_hp
+	boss.attack_damage = int(cd.get("boss_atk", 52 + (s_num - 5) * 4))
+	var blbl := Label.new()
+	blbl.text = String(cd.get("boss_name", "บอสประจำบทที่ %d" % s_num))
+	blbl.position = Vector2(-80, -78)
+	blbl.custom_minimum_size = Vector2(160, 16)
+	blbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	blbl.add_theme_font_override("font", UiTheme.load_pixel_font())
+	blbl.add_theme_font_size_override("font_size", 9)
+	blbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.22))
+	boss.add_child(blbl)
 
 
 func _build_stage_3() -> void:
@@ -879,8 +946,9 @@ func _process(delta: float) -> void:
 				_spawn_enemy(pick, Vector2(sx, FLOOR_Y))
 				ScenarioManager.constellation_message.emit("[ผู้รอดชีวิตคลุ้มคลั่งกลุ่มใหม่บุกเข้ามาในตู้รถไฟ!]", 0)
 
-	# Stage 2 Toxic Fog Hazard
-	if stage_num == 2 and player != null and ScenarioManager.is_active:
+	# Stage 2 & Fog Chapters Toxic Fog Hazard
+	var is_fog_chapter := stage_num == 2 or (stage_num >= 5 and String(GameData.CHAPTERS.get(stage_num, {}).get("mode", "")) == "fog")
+	if is_fog_chapter and player != null and ScenarioManager.is_active:
 		var in_fog := player.global_position.x >= FOG_MIN_X and player.global_position.x <= FOG_MAX_X
 		if in_fog and not GameState.has_gas_mask:
 			hazard_status_changed.emit("⚠ อยู่ในเขตหมอกพิษ! (หาหน้ากากกันพิษหรือซื้อในถุงโดแกบี [B])")

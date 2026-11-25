@@ -347,12 +347,23 @@ func show_scenario_intro(stage_num: int = 1) -> void:
 				+ "• คำเตือน: หากออกนอกวง Green Zone ระหว่างเวฟ ความมืดจะกัดกิน HP ต่อเนื่อง!\n"
 				+ "• เควสรอง: วิ่งฝ่าความมืดออกไปด้านขวาเพื่อช่วยผู้รอดชีวิต (+200 เหรียญ)   |   รางวัล: 700 เหรียญ"
 			)
-		_:
+		4:
 			body.text = (
 				"บทละครใหญ่เปิดฉาก! เหล่าผู้ท้าชิงต่างมารวมตัวกันที่โถงสถานีเพื่อชิงตำแหน่ง 'ราชา'!\n\n"
 				+ "• เงื่อนไขเคลียร์: ยึดธงสถานีทั้ง 2 จุด (กด [F]) และโค่นบอสใหญ่ 'ทรราชผู้ชิงบัลลังก์'\n"
 				+ "• โบนัสธง: ทุกธงที่ยึดได้จะเพิ่มพลังโจมตี +6 และมอบ 200 เหรียญทันที\n"
-				+ "• เวลาจำกัด: 4 นาที   |   รางวัล: 1,200 เหรียญ + ฉายาราชาแห่งตู้ 3707!"
+				+ "• เวลาจำกัด: 5 นาที   |   รางวัล: 1,200 เหรียญ"
+			)
+		_:
+			var cd: Dictionary = GameData.CHAPTERS.get(stage_num, {})
+			var flag_line := "• ยึดธง/ทำลายผนึก %d จุด (กด [F])\n" % int(cd.get("flags_req", 0)) if int(cd.get("flags_req", 0)) > 0 else ""
+			var fog_line := "• ระวังเขตหมอกพิษกลางฉาก (ควรมีหน้ากากกันพิษ)\n" if String(cd.get("mode", "")) == "fog" else ""
+			body.text = (
+				"%s\n\n" % String(cd.get("intro", ""))
+				+ flag_line
+				+ fog_line
+				+ "• กำจัดศัตรูอย่างน้อย %d ตัว และโค่นบอส '%s'\n" % [int(cd.get("kills_req", 8)), String(cd.get("boss_name", "บอสประจำบท"))]
+				+ "• เพดานเลเวลบทนี้: Lv.%d   |   รางวัล: %d เหรียญ" % [int(cd.get("level_cap", 50)), int(cd.get("reward_coins", 1500))]
 			)
 	v.add_child(body)
 
@@ -842,7 +853,7 @@ func show_result_modal(victory: bool, fail_reason: String) -> void:
 	var is_campaign_win := victory and ScenarioManager.ending_type == "campaign_victory"
 	var h := Label.new()
 	if is_campaign_win:
-		h.text = "[ ★ พิชิตครบ 4 บทละคร: ราชาแห่งตู้ 3707! ★ ]"
+		h.text = "[ ★★★ พิชิตครบทั้ง 20 บทละครแห่งโดมกรุงโซล! ★★★ ]"
 	elif is_secret_cast:
 		h.text = "[ ★ อีเวนต์พิเศษ: พบเจอกลุ่มตัวเอกที่ตู้ 3807! ★ ]"
 	elif victory:
@@ -859,7 +870,12 @@ func show_result_modal(victory: bool, fail_reason: String) -> void:
 	var sp_name: String = GameData.SPONSORS.get(GameState.selected_sponsor_id, {}).get("name", "-")
 	var end_desc := ""
 	if ScenarioManager.ending_type == "campaign_victory":
-		end_desc = "คุณยึดธงสถานีครบทั้ง 2 จุดและโค่น 'ทรราชผู้ชิงบัลลังก์' ลงได้สำเร็จ! เหล่ากลุ่มดาวทั่วห้วงดาราต่างจับจ้องมาที่คุณในฐานะ 'ราชาแห่งตู้ 3707'!\n\n"
+		end_desc = "คุณพิชิตครบทั้ง 20 บทละครและโค่น 'มหาเทพแห่งปราสาทมืด' ลงได้สำเร็จ! โดมแห่งกรุงโซลถูกปลดปล่อย และชื่อของคุณถูกจารึกเป็นเรื่องเล่าตำนานแห่ง Star Stream!\n\n"
+	elif ScenarioManager.ending_type == "chapter_clear":
+		var cd_res: Dictionary = GameData.CHAPTERS.get(ScenarioManager.current_stage, {})
+		end_desc = "คุณโค่น '%s' และพิชิตบทละครที่ %d สำเร็จ! (+%d เหรียญ)\n\n" % [String(cd_res.get("boss_name", "บอส")), ScenarioManager.current_stage, int(cd_res.get("reward_coins", 1500))]
+	elif ScenarioManager.ending_type == "stage4_clear":
+		end_desc = "คุณยึดธงสถานีครบทั้ง 2 จุดและโค่น 'ทรราชผู้ชิงบัลลังก์' ได้สำเร็จ! เส้นทางสู่บทที่ 5: บัลลังก์สัมบูรณ์เปิดออกแล้ว! (+1,200 เหรียญ)\n\n"
 	elif ScenarioManager.ending_type == "stage2_clear":
 		end_desc = "คุณฝ่าหมอกพิษและโค่นอสูรบนสะพานตงโฮมาถึงสถานีโอกซูได้สำเร็จ! (+500 เหรียญ)\n\n"
 	elif ScenarioManager.ending_type == "stage3_clear":
@@ -899,7 +915,7 @@ func show_result_modal(victory: bool, fail_reason: String) -> void:
 	row.add_theme_constant_override("separation", 14)
 	v.add_child(row)
 
-	if victory and ScenarioManager.current_stage < 4:
+	if victory and ScenarioManager.current_stage < GameData.MAX_CHAPTER:
 		var b_next := Button.new()
 		b_next.text = "★ เข้าสู่บทละครที่ %d →" % (ScenarioManager.current_stage + 1)
 		b_next.custom_minimum_size = Vector2(240, 48)

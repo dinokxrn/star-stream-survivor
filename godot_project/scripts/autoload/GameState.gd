@@ -438,6 +438,8 @@ func get_total_level() -> int:
 
 
 func get_stage_level_cap(stage_num: int) -> int:
+	if GameData.CHAPTERS.has(stage_num):
+		return int(GameData.CHAPTERS[stage_num].get("level_cap", 42 + (stage_num - 4) * 8))
 	match stage_num:
 		1: return 16
 		2: return 24
@@ -721,7 +723,7 @@ func has_save() -> bool:
 func save_game(stage_num: int) -> bool:
 	var payload := {
 		"version": 1,
-		"stage": clampi(stage_num, 1, 4),
+		"stage": clampi(stage_num, 1, GameData.MAX_CHAPTER),
 		"player_name": player_name,
 		"selected_char_index": selected_char_index,
 		"current_attribute_id": current_attribute_id,
@@ -833,7 +835,7 @@ func load_game() -> int:
 	inventory_changed.emit()
 	skills_changed.emit()
 	coins_changed.emit(coins, 0)
-	return clampi(int(data.get("stage", 1)), 1, 4)
+	return clampi(int(data.get("stage", 1)), 1, GameData.MAX_CHAPTER)
 
 
 func delete_save() -> void:

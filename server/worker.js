@@ -159,7 +159,7 @@ export class CoopRoom extends DurableObject {
         room_code: "0000",
       };
       if (roomState.host_id === att.peer_id) {
-        roomState.stage = Math.max(1, Math.min(4, Number(data.stage) || 1));
+        roomState.stage = Math.max(1, Math.min(20, Number(data.stage) || 1));
         roomState.started = true;
         await this.ctx.storage.put("room_state", roomState);
         this._broadcast(
