@@ -706,20 +706,24 @@ func _summon_apocalypse_dragon() -> void:
 
 	_dragon_sprite = AnimatedSprite2D.new()
 	_dragon_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_dragon_sprite.scale = Vector2(2.5, 2.5)
+	_dragon_sprite.scale = Vector2(0.88, 0.88)
 	_dragon_sprite.flip_h = side < 0.0
 	var sf := SpriteFrames.new()
 	var tex := SpriteLoader.load_tex("res://assets/sprites/enemy_dragon.png")
 	if tex != null:
+		var fw := int(tex.get_width() / 3)
+		var fh := int(tex.get_height() / 4)
+		var row_y := fh * 3 # Bottom row: side-view facing left
 		sf.add_animation("fly")
-		sf.set_animation_speed("fly", 7.0)
+		sf.set_animation_speed("fly", 6.5)
 		sf.set_animation_loop("fly", true)
-		for idx in [0, 1, 2, 3]:
-			sf.add_frame("fly", SpriteLoader.make_atlas(tex, idx * 64, 0, 64, 56))
+		for idx in [0, 1, 2, 1]:
+			sf.add_frame("fly", SpriteLoader.make_atlas(tex, idx * fw, row_y, fw, fh))
 		sf.add_animation("breath")
-		sf.set_animation_speed("breath", 6.0)
+		sf.set_animation_speed("breath", 8.0)
 		sf.set_animation_loop("breath", true)
-		sf.add_frame("breath", SpriteLoader.make_atlas(tex, 4 * 64, 0, 64, 56))
+		sf.add_frame("breath", SpriteLoader.make_atlas(tex, 2 * fw, row_y, fw, fh))
+		sf.add_frame("breath", SpriteLoader.make_atlas(tex, 1 * fw, row_y, fw, fh))
 	_dragon_sprite.sprite_frames = sf
 	_dragon_node.add_child(_dragon_sprite)
 	if sf.has_animation("fly"):
@@ -727,7 +731,7 @@ func _summon_apocalypse_dragon() -> void:
 
 	var lbl := Label.new()
 	lbl.text = "🐉 มังกรแห่งวันสิ้นโลก [HP 999,999]"
-	lbl.position = Vector2(-95, -82)
+	lbl.position = Vector2(-95, -86)
 	lbl.custom_minimum_size = Vector2(190, 18)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_override("font", px_font)
