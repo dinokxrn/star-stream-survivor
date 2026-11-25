@@ -113,7 +113,7 @@ func _process(delta: float) -> void:
 	var max_mp := get_max_mp()
 	if mp < max_mp:
 		var regen := (2.4 + float(stats["mag"]) * 0.75) * delta
-		if current_attribute_id == "star_archmage":
+		if current_attribute_id in ["star_archmage", "apocalypse_reader"]:
 			regen *= 2.0
 		elif current_attribute_id in ["occult_student", "zero_regressor", "frost_mage", "pyromancer", "necro_train"]:
 			regen *= 1.35
@@ -336,6 +336,8 @@ func get_hype_coin_mult() -> float:
 		m *= 1.5
 	if has_fable("fable_main_cast"):
 		m *= 1.2
+	if current_attribute_id == "apocalypse_reader":
+		m *= 2.0
 	return m
 
 
@@ -365,7 +367,11 @@ func get_attack_damage() -> int:
 	if current_attribute_id == "berserker":
 		var missing_ratio := 1.0 - (float(hp) / float(maxi(1, get_max_hp())))
 		base = int(round(float(base) * (1.0 + missing_ratio * 0.80)))
-	if current_attribute_id == "tempest_blademaster" and randf() < 0.35:
+	if current_attribute_id == "apocalypse_reader":
+		base = int(round(float(base) * 1.45))
+		if randf() < 0.40:
+			base = int(round(float(base) * 1.80))
+	elif current_attribute_id == "tempest_blademaster" and randf() < 0.35:
 		base = int(round(float(base) * 1.65))
 	elif current_attribute_id in ["underground_boxer", "zero_regressor", "club_archer"] and randf() < 0.25:
 		base = int(round(float(base) * 1.6))
@@ -396,7 +402,27 @@ func get_char_sprite_path() -> String:
 
 
 func get_parry_window() -> float:
-	return 0.38 if current_attribute_id == "shield_guardian" else 0.24
+	if current_attribute_id == "shield_guardian":
+		return 0.38
+	if current_attribute_id == "apocalypse_reader":
+		return 0.36
+	return 0.24
+
+
+func get_total_level() -> int:
+	return int(stats["str"]) + int(stats["phy"]) + int(stats["agi"]) + int(stats["mag"])
+
+
+func get_stage_level_cap(stage_num: int) -> int:
+	match stage_num:
+		1: return 16
+		2: return 24
+		3: return 32
+		_: return 42
+
+
+func get_probability_overflow(stage_num: int) -> int:
+	return maxi(0, get_total_level() - get_stage_level_cap(stage_num))
 
 
 func get_skill_damage(skill_id: String) -> int:
@@ -404,6 +430,8 @@ func get_skill_damage(skill_id: String) -> int:
 	var mult := float(s.get("power_mult", 1.5))
 	var is_magic: bool = bool(s.get("is_magic", false))
 	var base := float(get_attack_damage()) * mult + float(stats["mag"]) * (6.0 if is_magic else 3.5)
+	if current_attribute_id == "apocalypse_reader":
+		base *= 1.45
 	if is_magic and current_attribute_id == "thunder_caster":
 		base *= 1.2
 	if is_magic and buff_arcane_timer > 0.0:
@@ -628,7 +656,9 @@ func use_consumable(slot_idx: int) -> Dictionary:
 
 func apply_damage(raw_damage: int) -> int:
 	var dmg_val: float = float(raw_damage)
-	if current_attribute_id == "station_guard":
+	if current_attribute_id == "apocalypse_reader":
+		dmg_val *= 0.60
+	elif current_attribute_id == "station_guard":
 		dmg_val *= 0.85
 	elif current_attribute_id == "shield_guardian":
 		dmg_val *= 0.80

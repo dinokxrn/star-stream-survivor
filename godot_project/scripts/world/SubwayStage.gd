@@ -48,6 +48,12 @@ var _next_enemy_seq: int = 0
 var _net_player_tick: float = 0.0
 var _net_enemy_tick: float = 0.0
 
+# Probability Storm Penalty (exceeding scenario level cap)
+var _prob_drain_tick: float = 0.0
+var _prob_bind_cd: float = 4.0
+var _prob_bind_timer: float = 0.0
+var _prob_warned: bool = false
+
 
 func build_stage(p_stage_num: int = 1) -> void:
 	stage_num = clampi(p_stage_num, 1, 4)
@@ -694,6 +700,54 @@ func _process(delta: float) -> void:
 		if _shake_timer <= 0.0:
 			camera.offset = Vector2.ZERO
 			_shake_strength = 0.0
+
+	# Probability Storm Penalty when total stat level exceeds Scenario cap!
+	if player != null and is_instance_valid(player) and ScenarioManager.is_active and GameState.hp > 0:
+		var over_lv := GameState.get_probability_overflow(stage_num)
+		if over_lv > 0:
+			var cur_lv := GameState.get_total_level()
+			var cap_lv := GameState.get_stage_level_cap(stage_num)
+			hazard_status_changed.emit("⚡ [พายุแห่งความเป็นไปได้!] เลเวลเกินเพดาน (Lv.%d/%d) — โดนตรึง & เลือดลดต่อเนื่อง!" % [cur_lv, cap_lv])
+			if not _prob_warned:
+				_prob_warned = true
+				var msg := "[⚡ กำแพงที่สี่สั่นสะเทือน! พายุแห่งความเป็นไปได้กำลังลงทัณฑ์ผู้ฝ่าฝืนเพดานบทละคร!]" if GameState.current_attribute_id == "apocalypse_reader" else "[⚡ คำเตือนจาก Star Stream! เลเวลของคุณเกินเพดานความเป็นไปได้ของบทละครนี้!]"
+				ScenarioManager.constellation_message.emit(msg, 0)
+			# Continuous HP drain scaling with overflow
+			_prob_drain_tick += delta
+			if _prob_drain_tick >= 1.15:
+				_prob_drain_tick = 0.0
+				var drain := 5 + over_lv * 3
+				GameState.hp = maxi(0, GameState.hp - drain)
+				GameState.hp_mp_changed.emit()
+				SfxManager.play("hurt")
+				VfxManager.spawn_vfx("dark_orb", self, player.global_position + Vector2(0, -16), false, 0.35)
+				player.spawn_floating_text("⚡ ความเป็นไปได้ -%d" % drain, Color(0.95, 0.25, 0.98))
+				if GameState.hp <= 0:
+					player.player_died.emit()
+			# Periodic Probability Bind (locks movement!)
+			if _prob_bind_timer > 0.0:
+				_prob_bind_timer -= delta
+				player.controls_locked = true
+				if _prob_bind_timer <= 0.0:
+					player.controls_locked = false
+			else:
+				_prob_bind_cd -= delta
+				if _prob_bind_cd <= 0.0:
+					_prob_bind_cd = maxf(3.2, 5.2 - float(over_lv) * 0.25)
+					_prob_bind_timer = 1.65
+					player.controls_locked = true
+					SfxManager.play("skill")
+					VfxManager.spawn_vfx("lightning", self, player.global_position + Vector2(0, -18), false, 0.72)
+					trigger_screen_shake(5.5, 0.24)
+					player.spawn_floating_text("⚡ ถูกความเป็นไปได้ตรึง! ขยับไม่ได้!", Color(1.0, 0.32, 0.95))
+		else:
+			if _prob_bind_timer > 0.0:
+				_prob_bind_timer = 0.0
+				player.controls_locked = false
+			if _prob_warned:
+				_prob_warned = false
+				hazard_status_changed.emit("")
+			_prob_drain_tick = 0.0
 
 	# Stage 1 Farm mode periodic reinforcements
 	if stage_num == 1 and ScenarioManager.is_farming and player != null:

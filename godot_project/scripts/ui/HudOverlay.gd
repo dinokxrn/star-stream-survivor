@@ -335,7 +335,11 @@ func refresh() -> void:
 	]
 
 	_coin_lbl.text = "%d เหรียญ" % GameState.coins
-	_attr_lbl.text = GameState.current_attribute.get("name", "ผู้รอดชีวิต")
+	var lv_tot := GameState.get_total_level()
+	var lv_cap := GameState.get_stage_level_cap(ScenarioManager.current_stage)
+	var lv_tag := " ⚡Lv.%d/%d!" % [lv_tot, lv_cap] if lv_tot > lv_cap else " Lv.%d/%d" % [lv_tot, lv_cap]
+	_attr_lbl.text = "%s%s" % [GameState.current_attribute.get("name", "ผู้รอดชีวิต"), lv_tag]
+	_attr_lbl.add_theme_color_override("font_color", Color(1.0, 0.32, 0.72) if lv_tot > lv_cap else UiTheme.COL_TEXT)
 
 	_sc_title_lbl.text = ScenarioManager.get_stage_title()
 	var mins := int(ScenarioManager.time_remaining) / 60
