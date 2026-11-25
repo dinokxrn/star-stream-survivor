@@ -453,8 +453,12 @@ func get_stage_level_cap(stage_num: int) -> int:
 		_: return 42
 
 
+func get_dragon_trigger_level(stage_num: int) -> int:
+	return get_stage_level_cap(stage_num) * 2
+
+
 func get_probability_overflow(stage_num: int) -> int:
-	return maxi(0, get_total_level() - get_stage_level_cap(stage_num))
+	return maxi(0, get_total_level() - get_dragon_trigger_level(stage_num))
 
 
 func apply_story_choice(choice_id: String) -> String:
@@ -522,7 +526,7 @@ func apply_story_choice(choice_id: String) -> String:
 
 
 func is_apocalypse_dragon_triggered(stage_num: int) -> bool:
-	return get_probability_overflow(stage_num) >= 1
+	return get_total_level() > get_dragon_trigger_level(stage_num)
 
 
 func get_skill_damage(skill_id: String) -> int:
