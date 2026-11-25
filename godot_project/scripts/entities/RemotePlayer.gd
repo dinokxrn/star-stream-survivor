@@ -48,7 +48,8 @@ func setup(p_peer_id: String, p_name: String, p_char_idx: int, p_attr_id: String
 
 	_sprite = AnimatedSprite2D.new()
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_sprite.position = Vector2(0, -19)
+	_sprite.position = Vector2(0, -23)
+	_sprite.scale = Vector2(0.78, 0.78)
 	_sprite.modulate = outfit["tint"]
 	_sprite.sprite_frames = _build_frames(char_idx)
 	add_child(_sprite)
@@ -116,13 +117,15 @@ func _build_frames(c_idx: int) -> SpriteFrames:
 		"attack_cast": [27, 28, 28],
 		"attack_shoot": [29, 1],
 	}
+	var fw := maxi(32, int(tex.get_width() / 30))
+	var fh := tex.get_height()
 	for anim in defs.keys():
 		sf.add_animation(anim)
 		var fps := 16.0 if anim.begins_with("attack") else (8.5 if anim == "run" else 5.0)
 		sf.set_animation_speed(anim, fps)
 		sf.set_animation_loop(anim, anim in ["idle", "run"])
 		for idx in defs[anim]:
-			sf.add_frame(anim, SpriteLoader.make_atlas(tex, int(idx) * 32, 0, 32, 40))
+			sf.add_frame(anim, SpriteLoader.make_atlas(tex, int(idx) * fw, 0, fw, fh))
 	return sf
 
 

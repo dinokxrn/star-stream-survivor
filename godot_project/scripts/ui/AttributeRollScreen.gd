@@ -270,7 +270,8 @@ func _refresh_char() -> void:
 	_char_name_lbl.text = "%d/%d: %s\n%s" % [_char_idx + 1, GameData.CHARACTERS.size(), ch["name"], ch["desc"]]
 	var tex := SpriteLoader.load_tex(String(ch["sprite"]))
 	if tex != null:
-		_char_preview.texture = SpriteLoader.make_atlas(tex, 0, 0, 32, 40)
+		var fw := maxi(32, int(tex.get_width() / 30))
+		_char_preview.texture = SpriteLoader.make_atlas(tex, 0, 0, fw, tex.get_height())
 	if NetworkManager.is_online and _rolled_attr.has("id"):
 		NetworkManager.send_profile_update(_name_input.text, _char_idx, String(_rolled_attr["id"]))
 

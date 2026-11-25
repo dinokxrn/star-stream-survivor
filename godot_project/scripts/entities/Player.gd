@@ -66,7 +66,8 @@ func _ready() -> void:
 
 	_sprite = AnimatedSprite2D.new()
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_sprite.position = Vector2(0, -19)
+	_sprite.position = Vector2(0, -23)
+	_sprite.scale = Vector2(0.78, 0.78)
 	_sprite.modulate = _outfit_tint
 	_sprite.sprite_frames = _build_frames()
 	add_child(_sprite)
@@ -80,6 +81,8 @@ func _build_frames() -> SpriteFrames:
 		tex = SpriteLoader.load_tex("res://assets/sprites/player_sheet.png")
 	if tex == null:
 		return sf
+	var fw := maxi(32, int(tex.get_width() / 30))
+	var fh := tex.get_height()
 	var defs := {
 		"idle": [0, 1],
 		"run": [2, 3, 4, 5],
@@ -102,7 +105,7 @@ func _build_frames() -> SpriteFrames:
 		sf.set_animation_speed(anim, fps)
 		sf.set_animation_loop(anim, anim in ["idle", "run"])
 		for idx in defs[anim]:
-			sf.add_frame(anim, SpriteLoader.make_atlas(tex, int(idx) * 32, 0, 32, 40))
+			sf.add_frame(anim, SpriteLoader.make_atlas(tex, int(idx) * fw, 0, fw, fh))
 	return sf
 
 
@@ -155,10 +158,11 @@ func _physics_process(delta: float) -> void:
 	if _attack_timer > 0.0:
 		_attack_timer -= delta
 	_anim_time += delta
-	_sprite.scale = _sprite.scale.lerp(Vector2.ONE, minf(1.0, delta * 13.0))
+	var base_sc := Vector2(0.78, 0.78)
+	_sprite.scale = _sprite.scale.lerp(base_sc, minf(1.0, delta * 13.0))
 	_sprite.rotation = lerpf(_sprite.rotation, 0.0, minf(1.0, delta * 14.0))
 	if is_on_floor() and not _was_on_floor:
-		_sprite.scale = Vector2(1.24, 0.78) # Crisp landing squash!
+		_sprite.scale = Vector2(0.94, 0.62) # Crisp landing squash!
 	_was_on_floor = is_on_floor()
 	if _combo_reset > 0.0:
 		_combo_reset -= delta
@@ -929,15 +933,15 @@ func _update_anim() -> void:
 
 	# Dynamic run bounce, forward lean, and idle breathing!
 	if target == "run":
-		var bounce := -absf(sin(_anim_time * 16.0)) * 3.0
-		_sprite.position = Vector2(0, -19.0 + bounce)
-		_sprite.rotation = lerpf(_sprite.rotation, float(facing) * 0.11, 0.25)
+		var bounce := -absf(sin(_anim_time * 16.0)) * 2.5
+		_sprite.position = Vector2(0, -23.0 + bounce)
+		_sprite.rotation = lerpf(_sprite.rotation, float(facing) * 0.09, 0.25)
 	elif target == "idle":
-		var breath := sin(_anim_time * 4.5) * 0.04
-		_sprite.position = Vector2(0, -19.0)
-		_sprite.scale = Vector2(1.0 - breath * 0.5, 1.0 + breath)
+		var breath := sin(_anim_time * 4.5) * 0.03
+		_sprite.position = Vector2(0, -23.0)
+		_sprite.scale = Vector2(0.78 - breath * 0.5, 0.78 + breath)
 	else:
-		_sprite.position = Vector2(0, -19.0)
+		_sprite.position = Vector2(0, -23.0)
 
 	var col := _outfit_tint
 	col.a = 0.55 if (_iframe_timer > 0.0 and int(_iframe_timer * 20.0) % 2 == 0) else 1.0
