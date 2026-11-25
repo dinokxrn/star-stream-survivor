@@ -188,6 +188,36 @@ func _ready() -> void:
 	)
 	util_row.add_child(_save_btn)
 
+	# Second compact row: Bag & Quick Weapon Swap buttons (works on Mobile/iPad/Desktop!)
+	var bag_row := HBoxContainer.new()
+	bag_row.position = Vector2(462, 48)
+	bag_row.add_theme_constant_override("separation", 8)
+	bag_row.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(bag_row)
+
+	var btn_bag := Button.new()
+	btn_bag.text = "🎒 กระเป๋า [I]"
+	btn_bag.custom_minimum_size = Vector2(118, 28)
+	btn_bag.focus_mode = Control.FOCUS_NONE
+	btn_bag.pressed.connect(func():
+		var ev := InputEventKey.new()
+		ev.physical_keycode = KEY_I
+		ev.pressed = true
+		Input.parse_input_event(ev)
+	)
+	bag_row.add_child(btn_bag)
+
+	var btn_swap := Button.new()
+	btn_swap.text = "⚔ สลับอาวุธ [R]"
+	btn_swap.custom_minimum_size = Vector2(132, 28)
+	btn_swap.focus_mode = Control.FOCUS_NONE
+	btn_swap.pressed.connect(func():
+		var wname := GameState.cycle_next_weapon()
+		SfxManager.play("coin")
+		ScenarioManager.constellation_message.emit("[⚔ สลับอาวุธเป็น: %s]" % wname, 0)
+	)
+	bag_row.add_child(btn_swap)
+
 	SfxManager.volume_changed.connect(func(pct: int, muted: bool):
 		if is_instance_valid(_vol_lbl):
 			_vol_lbl.text = "🔇 ปิด" if (muted or pct <= 0) else "🔊 %d%%" % pct
@@ -259,7 +289,7 @@ func _ready() -> void:
 		_item_labels.append(il)
 
 	var hint := Label.new()
-	hint.text = "[WASD] เดิน/กระโดด  •  [Space/คลิกซ้าย] โจมตี  •  [J/K/L] สกิล  •  [N/M] แพรี่  •  [Q] ไอเทม  •  [E] แอนทริบิว  •  [Tab] สเตตัส/ซื้อของ  •  [F] โต้ตอบ"
+	hint.text = "[WASD] เดิน/กระโดด • [Space] โจมตี • [J/K/L] สกิล • [N/M] แพรี่ • [Q] ไอเทม • [E] แอนทริบิว • [R] สลับอาวุธ • [I] กระเป๋า • [Tab] สเตตัส/ร้านค้า"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", UiTheme.COL_MUTED)

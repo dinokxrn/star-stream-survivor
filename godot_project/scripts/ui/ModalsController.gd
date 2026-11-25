@@ -60,7 +60,7 @@ func _open_panel(kind: String, panel: Control) -> void:
 
 
 func toggle_attribute_window() -> void:
-	if visible and _active_kind in ["status", "shop"]:
+	if visible and _active_kind in ["status", "shop", "bag"]:
 		close_modal()
 		return
 	if visible and _active_kind in ["sponsor", "result", "intro", "bug_box"]:
@@ -68,28 +68,44 @@ func toggle_attribute_window() -> void:
 	_show_attribute_window()
 
 
+func toggle_bag_window() -> void:
+	if visible and _active_kind == "bag":
+		close_modal()
+		return
+	if visible and _active_kind in ["sponsor", "result", "intro", "bug_box"]:
+		return
+	_show_bag_window()
+
+
 func _make_tab_switcher(active_tab: String) -> HBoxContainer:
 	var bar := HBoxContainer.new()
 	bar.alignment = BoxContainer.ALIGNMENT_CENTER
-	bar.add_theme_constant_override("separation", 10)
+	bar.add_theme_constant_override("separation", 8)
 
 	var btn_stat := Button.new()
-	btn_stat.text = "⚔ อัปสเตตัส & อาวุธ"
-	btn_stat.custom_minimum_size = Vector2(200, 36)
+	btn_stat.text = "⚔ อัปสเตตัส"
+	btn_stat.custom_minimum_size = Vector2(145, 36)
 	btn_stat.disabled = active_tab == "status"
 	btn_stat.pressed.connect(func(): _show_attribute_window())
 	bar.add_child(btn_stat)
 
+	var btn_bag := Button.new()
+	btn_bag.text = "🎒 กระเป๋าเก็บของ"
+	btn_bag.custom_minimum_size = Vector2(165, 36)
+	btn_bag.disabled = active_tab == "bag"
+	btn_bag.pressed.connect(func(): _show_bag_window())
+	bar.add_child(btn_bag)
+
 	var btn_shop := Button.new()
-	btn_shop.text = "🛒 ถุงโดแกบี (ซื้อของ/สกิล)"
-	btn_shop.custom_minimum_size = Vector2(220, 36)
+	btn_shop.text = "🛒 ถุงโดแกบี"
+	btn_shop.custom_minimum_size = Vector2(145, 36)
 	btn_shop.disabled = active_tab == "shop"
 	btn_shop.pressed.connect(func(): _show_shop_window())
 	bar.add_child(btn_shop)
 
 	var btn_save := Button.new()
 	btn_save.text = "💾 เซฟเกม"
-	btn_save.custom_minimum_size = Vector2(130, 36)
+	btn_save.custom_minimum_size = Vector2(115, 36)
 	btn_save.pressed.connect(func():
 		if GameState.save_game(ScenarioManager.current_stage):
 			SfxManager.play("levelup")
@@ -98,6 +114,185 @@ func _make_tab_switcher(active_tab: String) -> HBoxContainer:
 	)
 	bar.add_child(btn_save)
 	return bar
+
+
+func _show_bag_window() -> void:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(780, 540)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	panel.add_child(v)
+	v.add_child(_make_tab_switcher("bag"))
+
+	var top := HBoxContainer.new()
+	v.add_child(top)
+	var title := Label.new()
+	title.text = "[ 🎒 กระเป๋าเก็บของ — สลับอาวุธ / ไอเทม / สกิล ]"
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.add_theme_font_override("font", UiTheme.load_font(true))
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", UiTheme.COL_BORDER)
+	top.add_child(title)
+
+	var hint_r := Label.new()
+	hint_r.text = "กด [R] สลับอาวุธไว"
+	hint_r.add_theme_font_size_override("font_size", 15)
+	hint_r.add_theme_color_override("font_color", UiTheme.COL_GOLD)
+	top.add_child(hint_r)
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(740, 390)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(scroll)
+
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 8)
+	scroll.add_child(list)
+
+	# 1. Weapons Section
+	var w_hdr := Label.new()
+	w_hdr.text = "⚔ คลังอาวุธ (%d ชิ้น) — กด 'สวมใส่' เพื่อสลับอาวุธได้ทันที:" % GameState.owned_weapons.size()
+	w_hdr.add_theme_font_override("font", UiTheme.load_font(true))
+	w_hdr.add_theme_color_override("font_color", UiTheme.COL_GOLD)
+	list.add_child(w_hdr)
+
+	for wid in GameState.owned_weapons:
+		if not GameData.WEAPONS.has(wid):
+			continue
+		var wd: Dictionary = GameData.WEAPONS[wid]
+		var is_eq := wid == GameState.equipped_weapon
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		list.add_child(row)
+
+		var lbl := Label.new()
+		var kind_tag := "เวท" if bool(wd.get("is_magic", false)) else "กายภาพ"
+		lbl.text = "• %s  [ATK %d | %s] — %s" % [wd["name"], int(wd["atk"]), kind_tag, wd.get("desc", "")]
+		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lbl.add_theme_color_override("font_color", UiTheme.COL_GOLD if is_eq else UiTheme.COL_TEXT)
+		row.add_child(lbl)
+
+		var wb := Button.new()
+		wb.text = "★ สวมใส่อยู่" if is_eq else "สวมใส่"
+		wb.custom_minimum_size = Vector2(115, 32)
+		wb.disabled = is_eq
+		wb.pressed.connect(func():
+			GameState.equip_weapon(wid)
+			SfxManager.play("coin")
+			_show_bag_window()
+		)
+		row.add_child(wb)
+
+	list.add_child(HSeparator.new())
+
+	# 2. Consumables Section
+	var c_hdr := Label.new()
+	c_hdr.text = "🧪 ไอเทมในกระเป๋า (กดใช้ หรือตั้งเป็นปุ่มลัด [Q] / [V]):"
+	c_hdr.add_theme_font_override("font", UiTheme.load_font(true))
+	c_hdr.add_theme_color_override("font_color", Color(0.55, 0.96, 0.72))
+	list.add_child(c_hdr)
+
+	var any_item := false
+	for iid in GameState.consumables.keys():
+		var cnt := int(GameState.consumables[iid])
+		if cnt <= 0 or not GameData.CONSUMABLES.has(iid):
+			continue
+		any_item = true
+		var cd: Dictionary = GameData.CONSUMABLES[iid]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		list.add_child(row)
+
+		var lbl := Label.new()
+		lbl.text = "• %s x%d — %s" % [cd["name"], cnt, cd.get("desc", "")]
+		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(lbl)
+
+		var bq := Button.new()
+		bq.text = "ตั้ง [Q]"
+		bq.custom_minimum_size = Vector2(68, 30)
+		bq.pressed.connect(func():
+			GameState.assign_quick_slot(0, iid)
+			SfxManager.play("coin")
+			_show_bag_window()
+		)
+		row.add_child(bq)
+
+		var bv := Button.new()
+		bv.text = "ตั้ง [V]"
+		bv.custom_minimum_size = Vector2(68, 30)
+		bv.pressed.connect(func():
+			GameState.assign_quick_slot(1, iid)
+			SfxManager.play("coin")
+			_show_bag_window()
+		)
+		row.add_child(bv)
+
+	if not any_item:
+		var empty_c := Label.new()
+		empty_c.text = "  (ยังไม่มีไอเทมกดใช้ — ซื้อเพิ่มได้ที่แท็บ 'ถุงโดแกบี')"
+		empty_c.add_theme_color_override("font_color", UiTheme.COL_MUTED)
+		list.add_child(empty_c)
+
+	list.add_child(HSeparator.new())
+
+	# 3. Owned Skills Section (swap into J / K / L)
+	var s_hdr := Label.new()
+	s_hdr.text = "✦ สกิลที่เรียนแล้ว (%d สกิล) — เลือกใส่ช่อง [J] / [K] / [L]:" % GameState.owned_skills.size()
+	s_hdr.add_theme_font_override("font", UiTheme.load_font(true))
+	s_hdr.add_theme_color_override("font_color", UiTheme.COL_BORDER)
+	list.add_child(s_hdr)
+
+	var skeys := ["J", "K", "L"]
+	for sid in GameState.owned_skills:
+		if not GameData.SKILLS.has(sid):
+			continue
+		var sd: Dictionary = GameData.SKILLS[sid]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		list.add_child(row)
+
+		var cur_slot := GameState.equipped_skills.find(sid)
+		var slot_tag := " [ช่อง %s]" % skeys[cur_slot] if cur_slot >= 0 else ""
+		var lbl := Label.new()
+		lbl.text = "• %s (%dMP)%s" % [sd["name"], int(sd["mp_cost"]), slot_tag]
+		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lbl.add_theme_color_override("font_color", UiTheme.COL_GOLD if cur_slot >= 0 else UiTheme.COL_TEXT)
+		row.add_child(lbl)
+
+		for si in 3:
+			var sb := Button.new()
+			sb.text = "[%s]" % skeys[si]
+			sb.custom_minimum_size = Vector2(48, 30)
+			sb.disabled = (cur_slot == si)
+			sb.pressed.connect(func():
+				GameState.equip_skill_to_slot(sid, si)
+				SfxManager.play("coin")
+				_show_bag_window()
+			)
+			row.add_child(sb)
+
+	list.add_child(HSeparator.new())
+
+	# 4. Key Items & Status Summary
+	var k_lbl := Label.new()
+	var mask_s := "✓ มีหน้ากากกันหมอกพิษ" if GameState.has_gas_mask else "✗ ยังไม่มีหน้ากากกันหมอกพิษ"
+	k_lbl.text = "★ ไอเทมสำคัญ: %s   |   คู่หู: %d คน   |   พร (Boons): %d   |   เรื่องเล่า: %d" % [
+		mask_s, GameState.companions.size(), GameState.owned_boons.size(), GameState.owned_fables.size()
+	]
+	k_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	k_lbl.add_theme_color_override("font_color", Color(0.75, 0.90, 1.0))
+	list.add_child(k_lbl)
+
+	var close_btn := Button.new()
+	close_btn.text = "ปิดกระเป๋า (Tab / I)"
+	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close_btn.pressed.connect(close_modal)
+	v.add_child(close_btn)
+
+	_open_panel("bag", panel)
 
 
 func toggle_shop_window() -> void:

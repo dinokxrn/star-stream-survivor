@@ -400,6 +400,26 @@ func equip_skill_to_slot(skill_id: String, slot_idx: int) -> void:
 	skills_changed.emit()
 
 
+func cycle_next_weapon() -> String:
+	if owned_weapons.size() <= 1:
+		return String(get_weapon_data().get("name", ""))
+	var cur_idx := owned_weapons.find(equipped_weapon)
+	var next_idx := (cur_idx + 1) % owned_weapons.size()
+	equipped_weapon = owned_weapons[next_idx]
+	inventory_changed.emit()
+	stats_changed.emit()
+	return String(get_weapon_data().get("name", ""))
+
+
+func assign_quick_slot(slot_idx: int, item_id: String) -> void:
+	if slot_idx < 0 or slot_idx >= 2 or not GameData.CONSUMABLES.has(item_id):
+		return
+	while quick_slots.size() < 2:
+		quick_slots.append("")
+	quick_slots[slot_idx] = item_id
+	inventory_changed.emit()
+
+
 func get_char_sprite_path() -> String:
 	var idx := clampi(selected_char_index, 0, GameData.CHARACTERS.size() - 1)
 	return String(GameData.CHARACTERS[idx]["sprite"])
