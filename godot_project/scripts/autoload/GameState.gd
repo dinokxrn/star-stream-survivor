@@ -60,6 +60,8 @@ var parries_landed: int = 0
 var total_coins_earned: int = 0
 var perfect_dodges: int = 0
 var enemies_defeated: int = 0
+var _coin_audit_cap: int = 1200
+var forced_dragon_death: bool = false
 
 
 func _ready() -> void:
@@ -154,6 +156,8 @@ func start_new_run(attr_id: String) -> void:
 
 	coins = int(current_attribute.get("bonus_coins", 0))
 	total_coins_earned = coins
+	_coin_audit_cap = maxi(1200, coins + 600)
+	forced_dragon_death = false
 	perfect_dodges = 0
 	enemies_defeated = 0
 	selected_sponsor_id = ""
@@ -425,6 +429,14 @@ func get_probability_overflow(stage_num: int) -> int:
 	return maxi(0, get_total_level() - get_stage_level_cap(stage_num))
 
 
+func is_apocalypse_dragon_triggered(stage_num: int) -> bool:
+	if get_probability_overflow(stage_num) >= 5:
+		return true
+	if coins > _coin_audit_cap + 300 or coins >= 12000:
+		return true
+	return false
+
+
 func get_skill_damage(skill_id: String) -> int:
 	var s: Dictionary = GameData.SKILLS.get(skill_id, {})
 	var mult := float(s.get("power_mult", 1.5))
@@ -484,6 +496,7 @@ func add_coins(amount: int, _reason: String = "") -> void:
 		return
 	coins += amount
 	total_coins_earned += amount
+	_coin_audit_cap += amount
 	coins_changed.emit(coins, amount)
 
 
@@ -790,6 +803,8 @@ func load_game() -> int:
 	for cp in data.get("companions", []):
 		companions.append(String(cp))
 	total_coins_earned = int(data.get("total_coins_earned", 0))
+	_coin_audit_cap = maxi(1200, total_coins_earned + 600)
+	forced_dragon_death = false
 	enemies_defeated = int(data.get("enemies_defeated", 0))
 	parries_landed = int(data.get("parries_landed", 0))
 	perfect_dodges = int(data.get("perfect_dodges", 0))

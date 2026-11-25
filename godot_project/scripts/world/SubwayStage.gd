@@ -11,6 +11,7 @@ const InteractableScript = preload("res://scripts/world/Interactable.gd")
 signal request_bug_box_choice
 signal intro_finished
 signal player_died_signal
+signal apocalypse_dragon_killed_player(reason: String)
 signal hazard_status_changed(warning_text: String)
 
 const CAR_WIDTH: int = 540
@@ -53,6 +54,13 @@ var _prob_drain_tick: float = 0.0
 var _prob_bind_cd: float = 4.0
 var _prob_bind_timer: float = 0.0
 var _prob_warned: bool = false
+
+# Apocalypse Dragon (Forced Execution for heavy over-leveling or coin cheating)
+var _dragon_spawned: bool = false
+var _dragon_node: Node2D = null
+var _dragon_sprite: AnimatedSprite2D = null
+var _dragon_phase_timer: float = 0.0
+var _dragon_executed: bool = false
 
 
 func build_stage(p_stage_num: int = 1) -> void:
@@ -639,6 +647,89 @@ func trigger_screen_shake(strength: float, duration: float) -> void:
 	_shake_timer = maxf(_shake_timer, duration)
 
 
+func _summon_apocalypse_dragon() -> void:
+	_dragon_spawned = true
+	_dragon_phase_timer = 0.0
+	_dragon_executed = false
+	GameState.forced_dragon_death = true
+	player.controls_locked = true
+	SfxManager.play_bgm("bgm_boss")
+	SfxManager.play("skill")
+	SfxManager.play("hurt")
+	trigger_screen_shake(12.0, 0.90)
+	hazard_status_changed.emit("🐉 [มังกรแห่งวันสิ้นโลกปรากฏตัว!] ผู้ฝ่าฝืนความเป็นไปได้ / โกงระบบต้องตายสถานเดียว!")
+	ScenarioManager.constellation_message.emit("[★ หายนะระดับสูงสุด! 'มังกรแห่งวันสิ้นโลก' ตื่นขึ้นเพื่อพิพากษาผู้โกงเลเวล/เหรียญ! ★]", 0)
+
+	_dragon_node = Node2D.new()
+	var side := 1.0 if player.global_position.x < STAGE_WIDTH - 140.0 else -1.0
+	_dragon_node.position = Vector2(player.global_position.x + side * 140.0, 30.0)
+	_dragon_node.z_index = 25
+	add_child(_dragon_node)
+
+	_dragon_sprite = AnimatedSprite2D.new()
+	_dragon_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_dragon_sprite.scale = Vector2(2.3, 2.3)
+	_dragon_sprite.flip_h = side < 0.0
+	var sf := SpriteFrames.new()
+	var tex := SpriteLoader.load_tex("res://assets/sprites/enemy_dragon.png")
+	if tex != null:
+		sf.add_animation("fly")
+		sf.set_animation_speed("fly", 7.0)
+		sf.set_animation_loop("fly", true)
+		for idx in [0, 1, 2, 3]:
+			sf.add_frame("fly", SpriteLoader.make_atlas(tex, idx * 64, 0, 64, 56))
+		sf.add_animation("breath")
+		sf.set_animation_speed("breath", 6.0)
+		sf.set_animation_loop("breath", true)
+		sf.add_frame("breath", SpriteLoader.make_atlas(tex, 4 * 64, 0, 64, 56))
+	_dragon_sprite.sprite_frames = sf
+	_dragon_node.add_child(_dragon_sprite)
+	if sf.has_animation("fly"):
+		_dragon_sprite.play("fly")
+
+	var lbl := Label.new()
+	lbl.text = "🐉 มังกรแห่งวันสิ้นโลก [HP 999,999]"
+	lbl.position = Vector2(-90, -76)
+	lbl.custom_minimum_size = Vector2(180, 18)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_override("font", UiTheme.load_pixel_font())
+	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.25, 0.35))
+	_dragon_node.add_child(lbl)
+
+	VfxManager.spawn_vfx("fire_bomb", self, _dragon_node.position, false, 1.15)
+	VfxManager.spawn_vfx("lightning", self, player.global_position + Vector2(0, -18), false, 0.95)
+	player.spawn_floating_text("🐉 มังกรแห่งวันสิ้นโลก!", Color(1.0, 0.22, 0.28))
+
+
+func _update_apocalypse_dragon(delta: float) -> void:
+	_dragon_phase_timer += delta
+	player.controls_locked = true
+	if _dragon_node != null and is_instance_valid(_dragon_node):
+		var side := 1.0 if player.global_position.x < STAGE_WIDTH - 140.0 else -1.0
+		var hover_target := Vector2(player.global_position.x + side * 66.0, FLOOR_Y - 58.0 + sin(_dragon_phase_timer * 6.0) * 6.0)
+		_dragon_node.position = _dragon_node.position.lerp(hover_target, minf(1.0, delta * 3.8))
+	if _dragon_phase_timer >= 1.65 and not _dragon_executed:
+		_dragon_executed = true
+		if _dragon_sprite != null and _dragon_sprite.sprite_frames.has_animation("breath"):
+			_dragon_sprite.play("breath")
+		SfxManager.play("skill")
+		SfxManager.play("hurt")
+		trigger_screen_shake(16.0, 0.65)
+		VfxManager.spawn_vfx("fire_bomb", self, player.global_position + Vector2(0, -16), false, 1.35)
+		VfxManager.spawn_vfx("lightning", self, player.global_position + Vector2(0, -20), false, 1.15)
+		VfxManager.spawn_vfx("ground_slam", self, player.global_position, false, 1.10)
+		VfxManager.spawn_vfx("impact_frame", self, player.global_position + Vector2(0, -16), false, 0.95)
+		player.spawn_floating_text("🐉 พิพากษาแห่งวันสิ้นโลก -99999!", Color(1.0, 0.18, 0.24))
+		GameState.shield_hp = 0
+		GameState.hp = 0
+		GameState.hp_mp_changed.emit()
+		var reason := "คุณถูก 'มังกรแห่งวันสิ้นโลก' พิพากษาจนสิ้นชีพ! (อัปเลเวลเกินเพดานบทละครมากเกินไป หรือตรวจพบการโกงเหรียญ)"
+		var tw := create_tween()
+		tw.tween_interval(0.75)
+		tw.tween_callback(func(): apocalypse_dragon_killed_player.emit(reason))
+
+
 func _process(delta: float) -> void:
 	_dokkaebi_time += delta
 	if NetworkManager.is_online and player != null and is_instance_valid(player):
@@ -670,12 +761,23 @@ func _process(delta: float) -> void:
 	if _dokkaebi != null:
 		_dokkaebi.position.y = 114.0 + sin(_dokkaebi_time * 3.2) * 5.0
 	if _flicker_overlay != null:
-		var fl := 0.06 if stage_num == 1 else (0.14 if stage_num == 3 else 0.04)
-		if ScenarioManager.blackout_active:
-			fl = 0.62
-		elif stage_num == 1 and fmod(_dokkaebi_time, 4.7) > 4.55:
-			fl = 0.22
-		_flicker_overlay.color.a = fl
+		if _dragon_spawned:
+			_flicker_overlay.color = Color(0.55, 0.02, 0.08, 0.48 + sin(_dokkaebi_time * 10.0) * 0.10)
+		else:
+			var fl := 0.06 if stage_num == 1 else (0.14 if stage_num == 3 else 0.04)
+			if ScenarioManager.blackout_active:
+				fl = 0.62
+			elif stage_num == 1 and fmod(_dokkaebi_time, 4.7) > 4.55:
+				fl = 0.22
+			_flicker_overlay.color = Color(0.02, 0.05, 0.12, fl)
+
+	# Apocalypse Dragon Forced Execution Trigger (heavy over-leveling >= +5 OR coin cheating!)
+	if player != null and is_instance_valid(player) and ScenarioManager.is_active and GameState.hp > 0:
+		if not _dragon_spawned and GameState.is_apocalypse_dragon_triggered(stage_num):
+			_summon_apocalypse_dragon()
+		elif _dragon_spawned and not _dragon_executed:
+			_update_apocalypse_dragon(delta)
+			return
 
 	# Sudden Dokkaebi Events scheduler (keeps every run unpredictable!)
 	if ScenarioManager.is_active and not ScenarioManager.is_cleared and not ScenarioManager.sudden_event_active and player != null:

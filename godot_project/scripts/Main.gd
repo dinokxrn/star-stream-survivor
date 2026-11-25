@@ -194,6 +194,7 @@ func _load_stage(stage_num: int) -> void:
 	_stage.request_bug_box_choice.connect(func(): _modals.show_bug_box_choice())
 	_stage.hazard_status_changed.connect(func(txt: String): _hud.set_hazard_warning(txt))
 	_stage.player_died_signal.connect(_on_local_player_died)
+	_stage.apocalypse_dragon_killed_player.connect(func(reason: String): _on_scenario_failed(reason))
 
 
 func _on_local_player_died() -> void:
