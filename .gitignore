@@ -1,0 +1,16 @@
+# OS & Editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Godot cache
+godot_project/.godot/
+
+# Local helper repos & node_modules
+tools/pixelfx/
+node_modules/
+
+# Vercel local link
+.vercel/
