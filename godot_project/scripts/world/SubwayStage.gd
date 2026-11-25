@@ -382,6 +382,44 @@ func _spawn_companion(comp_id: String, pos: Vector2) -> void:
 	c.setup(comp_id, pos)
 
 
+func summon_constellation_avatar() -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	# Revive player at 100% HP/MP + Divine Shield + i-frames!
+	GameState.hp = GameState.get_max_hp()
+	GameState.mp = GameState.get_max_mp()
+	GameState.shield_hp = maxi(GameState.shield_hp, 120)
+	GameState.hp_mp_changed.emit()
+	GameState.stats_changed.emit()
+	player.controls_locked = false
+	player._iframe_timer = 3.0
+
+	# Dramatic Constellation Descent VFX + Screen Shake
+	trigger_screen_shake(14.0, 0.75)
+	SfxManager.play("levelup")
+	SfxManager.play("skill")
+	VfxManager.spawn_vfx("lightning", self, player.global_position + Vector2(0, -28), false, 1.30)
+	VfxManager.spawn_vfx("fire_bomb", self, player.global_position + Vector2(0, -16), false, 1.15)
+	VfxManager.spawn_vfx("level_up", self, player.global_position, false, 0.90)
+	VfxManager.spawn_vfx("impact_frame", self, player.global_position + Vector2(0, -16), false, 0.95)
+	player.spawn_floating_text("★ กลุ่มดาวลงจุติช่วยสู้! ฟื้น HP/MP 100% ★", Color(1.0, 0.90, 0.25))
+
+	# Spawn (or teleport existing) OP Constellation Avatar right beside player!
+	var found := false
+	for existing in get_tree().get_nodes_in_group("companions"):
+		if is_instance_valid(existing) and existing.comp_id == "constellation":
+			existing.global_position = player.global_position + Vector2(-28, 0)
+			found = true
+			break
+	if not found:
+		_spawn_companion("constellation", player.global_position + Vector2(-28, 0))
+
+	var sp_name: String = GameData.SPONSORS.get(GameState.selected_sponsor_id, {}).get("name", "")
+	if sp_name == "" or GameState.selected_sponsor_id == "none":
+		sp_name = "เทวทูตผู้พิพากษาแห่งเพลิง"
+	ScenarioManager.constellation_message.emit("[★ กลุ่มดาว '%s' ฝ่าม่านความเป็นไปได้ลงจุติมาช่วยสู้เคียงข้างคุณแล้ว! ★]" % sp_name, 0)
+
+
 func _build_stage_1() -> void:
 	var dok_tex := SpriteLoader.load_tex("res://assets/sprites/dokkaebi.png")
 	_dokkaebi = Sprite2D.new()

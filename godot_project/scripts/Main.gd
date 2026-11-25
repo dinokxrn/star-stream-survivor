@@ -66,6 +66,7 @@ func _ready() -> void:
 	_modals.next_stage_requested.connect(_open_boon_before_next_stage)
 	_modals.boon_picked_continue.connect(_open_route_choice_after_boon)
 	_modals.route_choice_selected.connect(_on_route_choice_selected)
+	_modals.constellation_descent_requested.connect(_on_constellation_descent)
 	_modals.restart_stage_requested.connect(_restart_current_stage)
 	_modals.reroll_new_game_requested.connect(_show_roll_screen)
 
@@ -181,6 +182,12 @@ func _on_route_choice_selected(target_stage: int, choice_id: String) -> void:
 	_start_stage(next_s)
 	if note != "":
 		ScenarioManager.constellation_message.emit("[%s]" % note, 0)
+
+
+func _on_constellation_descent(_cost: int) -> void:
+	ScenarioManager.is_active = true
+	if _stage != null and is_instance_valid(_stage) and _stage.has_method("summon_constellation_avatar"):
+		_stage.summon_constellation_avatar()
 
 
 func _advance_next_stage() -> void:

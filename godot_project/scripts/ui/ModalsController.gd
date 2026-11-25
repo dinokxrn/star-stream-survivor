@@ -7,6 +7,7 @@ signal stat_upgraded
 signal next_stage_requested
 signal boon_picked_continue
 signal route_choice_selected(target_stage: int, choice_id: String)
+signal constellation_descent_requested(cost: int)
 signal restart_stage_requested
 signal reroll_new_game_requested
 signal modal_state_changed(is_open: bool)
@@ -1120,6 +1121,27 @@ func show_result_modal(victory: bool, fail_reason: String) -> void:
 	else:
 		body.text = "สาเหตุ: %s\n\nลองใช้วิธีพุ่งหลบ (Shift) เพื่อรับเหรียญสปอนเซอร์จากกลุ่มดาว และอัปสเตตัส (Tab) หรือซื้อของในถุงโดแกบี (B) ดูนะครับ!" % fail_reason
 	v.add_child(body)
+
+	if not victory and ScenarioManager.current_stage in [19, 20] and not GameState.forced_dragon_death:
+		var descent_cost := 2500 if ScenarioManager.current_stage == 19 else 3500
+		var can_afford := GameState.coins >= descent_cost
+		var b_desc := Button.new()
+		if can_afford:
+			b_desc.text = "★ ขอให้กลุ่มดาวลงจุติช่วยสู้ทันที! (จ่าย %d เหรียญ | มี %d)" % [descent_cost, GameState.coins]
+		else:
+			b_desc.text = "★ ขอให้กลุ่มดาวลงจุติช่วยสู้ (ต้องใช้ %d เหรียญ | เหรียญไม่พอ: %d)" % [descent_cost, GameState.coins]
+		b_desc.disabled = not can_afford
+		b_desc.custom_minimum_size = Vector2(560, 52)
+		b_desc.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		b_desc.add_theme_font_override("font", UiTheme.load_pixel_font())
+		b_desc.add_theme_font_size_override("font_size", 18)
+		b_desc.add_theme_stylebox_override("normal", UiTheme.make_button_style(Color(0.38, 0.22, 0.04, 0.98), UiTheme.COL_GOLD))
+		b_desc.pressed.connect(func():
+			if GameState.spend_coins(descent_cost):
+				close_modal()
+				constellation_descent_requested.emit(descent_cost)
+		)
+		v.add_child(b_desc)
 
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
