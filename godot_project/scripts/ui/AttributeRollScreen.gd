@@ -146,7 +146,7 @@ func _ready() -> void:
 	cv.add_child(_passive_lbl)
 
 	var controls_hint := Label.new()
-	controls_hint.text = "การควบคุม: WASD เคลื่อนที่/กระโดด | คลิกซ้าย/U โจมตี | J/K/L สกิล | N/M แพรี่ | Q ไอเทม | E แอนทริบิว | Tab สเตตัส/ซื้อของ | F โต้ตอบ"
+	controls_hint.text = "การควบคุม: WASD เคลื่อนที่/กระโดด | Space โจมตีปกติ | J/K/L สกิล | N/M แพรี่ | Q ไอเทม | E แอนทริบิว | Tab สเตตัส/ซื้อของ | F โต้ตอบ"
 	controls_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	controls_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	controls_hint.add_theme_font_size_override("font_size", 14)

@@ -259,7 +259,7 @@ func _ready() -> void:
 		_item_labels.append(il)
 
 	var hint := Label.new()
-	hint.text = "[WASD] เดิน/กระโดด  •  [คลิกซ้าย/U] โจมตี  •  [J/K/L] สกิล  •  [N/M] แพรี่  •  [Q] ไอเทม  •  [E] แอนทริบิว  •  [Tab] สเตตัส/ซื้อของ  •  [F] โต้ตอบ"
+	hint.text = "[WASD] เดิน/กระโดด  •  [Space/คลิกซ้าย] โจมตี  •  [J/K/L] สกิล  •  [N/M] แพรี่  •  [Q] ไอเทม  •  [E] แอนทริบิว  •  [Tab] สเตตัส/ซื้อของ  •  [F] โต้ตอบ"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", UiTheme.COL_MUTED)
