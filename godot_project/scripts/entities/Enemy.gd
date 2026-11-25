@@ -60,68 +60,70 @@ func setup(p_archetype: String, pos: Vector2) -> void:
 
 	match archetype:
 		"frenzy":
-			max_hp = 110
-			move_speed = 96.0
-			attack_damage = 19
-			attack_range = 32.0
-		"charger":
 			max_hp = 165
-			move_speed = 104.0
-			attack_damage = 25
-			attack_range = 105.0
-		"thrower":
-			max_hp = 120
-			move_speed = 78.0
-			attack_damage = 22
-			attack_range = 170.0
-			preferred_min_range = 88.0
-			aggro_range = 250.0
-		"mage":
-			max_hp = 140
-			move_speed = 70.0
-			attack_damage = 23
-			attack_range = 190.0
-			preferred_min_range = 98.0
+			move_speed = 108.0
+			attack_damage = 26
+			attack_range = 34.0
 			aggro_range = 260.0
-		"brute":
-			max_hp = 280
-			move_speed = 66.0
-			attack_damage = 30
-			attack_range = 50.0
-			aggro_range = 230.0
-		"boss":
-			max_hp = 650
-			move_speed = 98.0
-			attack_damage = 30
-			attack_range = 145.0
-			aggro_range = 300.0
-		"boss_bridge":
-			max_hp = 900
-			move_speed = 104.0
+		"charger":
+			max_hp = 245
+			move_speed = 118.0
 			attack_damage = 34
-			attack_range = 155.0
-			aggro_range = 310.0
-		"boss_station":
-			max_hp = 1150
-			move_speed = 110.0
-			attack_damage = 38
-			attack_range = 160.0
-			aggro_range = 320.0
-		"boss_king":
-			max_hp = 2200
-			move_speed = 120.0
-			attack_damage = 48
+			attack_range = 115.0
+			aggro_range = 275.0
+		"thrower":
+			max_hp = 175
+			move_speed = 88.0
+			attack_damage = 30
 			attack_range = 185.0
-			aggro_range = 360.0
-	# Scale regular enemies across chapters so later stages stay intense!
+			preferred_min_range = 88.0
+			aggro_range = 280.0
+		"mage":
+			max_hp = 205
+			move_speed = 82.0
+			attack_damage = 32
+			attack_range = 205.0
+			preferred_min_range = 98.0
+			aggro_range = 290.0
+		"brute":
+			max_hp = 420
+			move_speed = 76.0
+			attack_damage = 44
+			attack_range = 54.0
+			aggro_range = 260.0
+		"boss":
+			max_hp = 980
+			move_speed = 112.0
+			attack_damage = 42
+			attack_range = 155.0
+			aggro_range = 330.0
+		"boss_bridge":
+			max_hp = 1450
+			move_speed = 118.0
+			attack_damage = 48
+			attack_range = 165.0
+			aggro_range = 340.0
+		"boss_station":
+			max_hp = 1850
+			move_speed = 124.0
+			attack_damage = 54
+			attack_range = 170.0
+			aggro_range = 350.0
+		"boss_king":
+			max_hp = 3400
+			move_speed = 134.0
+			attack_damage = 66
+			attack_range = 195.0
+			aggro_range = 390.0
+	# Scale regular enemies strongly across chapters so later stages stay intense!
 	if not archetype.begins_with("boss") and ScenarioManager.current_stage > 1:
-		var stage_scale := 1.0 + float(ScenarioManager.current_stage - 1) * 0.25
+		var stage_scale := 1.0 + float(ScenarioManager.current_stage - 1) * 0.35
 		max_hp = int(round(float(max_hp) * stage_scale))
-		attack_damage = int(round(float(attack_damage) * (1.0 + float(ScenarioManager.current_stage - 1) * 0.15)))
+		attack_damage = int(round(float(attack_damage) * (1.0 + float(ScenarioManager.current_stage - 1) * 0.22)))
 	hp = max_hp
 
 	var is_boss := archetype.begins_with("boss")
-	_max_poise = 7 if is_boss else (5 if archetype == "brute" else 3)
+	_max_poise = 10 if is_boss else (7 if archetype == "brute" else 4)
 	_poise = _max_poise
 	var col := CollisionShape2D.new()
 	var shape := RectangleShape2D.new()
@@ -169,10 +171,10 @@ func setup(p_archetype: String, pos: Vector2) -> void:
 func make_elite(golden: bool = false) -> void:
 	is_elite = true
 	is_golden_elite = golden
-	max_hp = int(round(float(max_hp) * 1.85))
+	max_hp = int(round(float(max_hp) * 2.15))
 	hp = max_hp
-	move_speed *= 1.24
-	attack_damage = int(round(float(attack_damage) * 1.25))
+	move_speed *= 1.30
+	attack_damage = int(round(float(attack_damage) * 1.42))
 	_sprite.scale *= 1.15
 	_hp_bar_fill.color = Color(1.0, 0.85, 0.2) if golden else Color(0.85, 0.35, 1.0)
 	_elite_label = Label.new()
@@ -325,8 +327,8 @@ func _physics_process(delta: float) -> void:
 					_state_timer = 0.22
 				else:
 					_state = "recover"
-					_state_timer = 0.26 if _boss_phase2 else (0.34 if is_boss else 0.38)
-					_attack_cd = 0.62 if _boss_phase2 else (0.82 if (archetype == "frenzy" or is_boss) else 1.10)
+					_state_timer = 0.20 if _boss_phase2 else (0.26 if is_boss else 0.30)
+					_attack_cd = 0.48 if _boss_phase2 else (0.65 if (archetype == "frenzy" or is_boss) else 0.88)
 		"recover":
 			_state_timer -= delta
 			velocity.x = move_toward(velocity.x, 0.0, 540.0 * delta)
@@ -338,19 +340,19 @@ func _physics_process(delta: float) -> void:
 				_sprite.flip_h = facing < 0
 				if preferred_min_range > 0.0 and dist < preferred_min_range and _attack_cd > 0.15:
 					_state = "chase"
-					velocity.x = -float(facing) * move_speed * 0.75 * speed_mult
+					velocity.x = -float(facing) * move_speed * 0.78 * speed_mult
 				elif dist <= attack_range and _attack_cd <= 0.0:
 					_state = "windup"
-					_next_unparryable = (is_boss and _boss_phase2 and randf() < 0.38) or (archetype == "brute" and randf() < 0.40)
-					_state_timer = 0.26 if _boss_phase2 else (0.28 if archetype == "frenzy" else (0.44 if archetype == "brute" else 0.36))
+					_next_unparryable = (is_boss and _boss_phase2 and randf() < 0.48) or (archetype == "brute" and randf() < 0.48)
+					_state_timer = 0.22 if _boss_phase2 else (0.24 if archetype == "frenzy" else (0.38 if archetype == "brute" else 0.31))
 					velocity.x = 0.0
 				else:
 					_state = "chase"
 					# Anti-kiting Gap-Closer lunge for melee enemies when player runs far away!
-					if preferred_min_range == 0.0 and dist > 95.0 and dist < 210.0 and _gap_close_cd <= 0.0 and is_on_floor():
-						_gap_close_cd = 2.8
-						velocity.x = float(facing) * (move_speed * 2.35)
-						velocity.y = -115.0
+					if preferred_min_range == 0.0 and dist > 90.0 and dist < 230.0 and _gap_close_cd <= 0.0 and is_on_floor():
+						_gap_close_cd = 2.1
+						velocity.x = float(facing) * (move_speed * 2.60)
+						velocity.y = -125.0
 					else:
 						velocity.x = float(facing) * move_speed * speed_mult
 			else:
@@ -396,7 +398,7 @@ func _execute_strike(player: Node) -> void:
 			for vy in [-48.0, 0.0, 48.0]:
 				_spawn_enemy_proj({
 					"pos": global_position + Vector2(float(facing) * 14.0, -18),
-					"vel": Vector2(float(facing) * 175.0, vy),
+					"vel": Vector2(float(facing) * 205.0, vy),
 					"damage": attack_damage,
 					"radius": 12.0,
 					"vfx": "dark_orb",
@@ -426,31 +428,32 @@ func _execute_strike(player: Node) -> void:
 				# 3-orb dark spread volley
 				_state_timer = 0.20
 				_did_hit_this_strike = true
-				var fan := [-52.0, 0.0, 52.0] if _boss_phase2 else [-32.0, 32.0]
+				var fan := [-72.0, -36.0, 0.0, 36.0, 72.0] if _boss_phase2 else [-42.0, 0.0, 42.0]
 				for vy in fan:
 					_spawn_enemy_proj({
 						"pos": global_position + Vector2(float(facing) * 18.0, -18),
-						"vel": Vector2(float(facing) * (210.0 if _boss_phase2 else 185.0), vy),
-						"damage": attack_damage - 4,
+						"vel": Vector2(float(facing) * (245.0 if _boss_phase2 else 215.0), vy),
+						"damage": attack_damage - 2,
 						"radius": 13.0,
 						"vfx": "dark_orb",
 						"vfx_scale": 0.28,
 						"explode_vfx": "hit_spark",
-						"life": 1.8,
+						"life": 1.9,
 					})
 				SfxManager.play("skill")
 			elif _boss_pattern == 2:
-				# Phase 2 Ground Slam shockwave + Falling Sky Pillar on player's X!
+				# Phase 2 Ground Slam shockwave + Twin Falling Sky Pillars!
 				_state_timer = 0.28
 				_did_hit_this_strike = true
-				VfxManager.spawn_vfx("ground_slam", get_parent(), global_position, false, 0.62)
+				VfxManager.spawn_vfx("ground_slam", get_parent(), global_position, false, 0.68)
 				SfxManager.play("skill")
-				var hz := Node2D.new()
-				hz.set_script(SkyHazardScript)
-				get_parent().add_child(hz)
-				hz.setup(player.global_position.x, 212.0, attack_damage)
-				if global_position.distance_to(player.global_position) <= 88.0:
-					player.take_damage(attack_damage + 6, float(facing) * 240.0, self, true)
+				for px_off in [0.0, float(facing) * 58.0]:
+					var hz := Node2D.new()
+					hz.set_script(SkyHazardScript)
+					get_parent().add_child(hz)
+					hz.setup(player.global_position.x + px_off, 212.0, attack_damage)
+				if global_position.distance_to(player.global_position) <= 94.0:
+					player.take_damage(attack_damage + 10, float(facing) * 255.0, self, true)
 			else:
 				# Phase 2 Summon reinforcement minion!
 				_state_timer = 0.24

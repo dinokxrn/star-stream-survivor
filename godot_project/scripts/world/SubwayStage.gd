@@ -397,8 +397,8 @@ func _build_stage_1() -> void:
 	_add_interactable("bug_box", "[F] สำรวจกระเป๋าเด็กน้อย", Vector2(1545, FLOOR_Y))
 
 	var opener := _spawn_enemy("frenzy", Vector2(265, FLOOR_Y))
-	opener.max_hp = 95
-	opener.hp = 95
+	opener.max_hp = 140
+	opener.hp = 140
 	_spawn_enemy("charger", Vector2(390, FLOOR_Y))
 	_spawn_enemy("thrower", Vector2(495, FLOOR_Y))
 
@@ -492,9 +492,9 @@ func _build_dynamic_chapter(s_num: int) -> void:
 
 	# Spawn Chapter Boss with custom ORV Seoul-Arc name, HP, and ATK!
 	var boss := _spawn_enemy("boss_king", Vector2(1370, FLOOR_Y))
-	boss.max_hp = int(cd.get("boss_hp", 2600 + (s_num - 5) * 600))
+	boss.max_hp = int(round(float(int(cd.get("boss_hp", 2600 + (s_num - 5) * 600))) * 1.45))
 	boss.hp = boss.max_hp
-	boss.attack_damage = int(cd.get("boss_atk", 52 + (s_num - 5) * 4))
+	boss.attack_damage = int(round(float(int(cd.get("boss_atk", 52 + (s_num - 5) * 4))) * 1.35))
 	var blbl := Label.new()
 	blbl.text = String(cd.get("boss_name", "บอสประจำบทที่ %d" % s_num))
 	blbl.position = Vector2(-80, -78)
