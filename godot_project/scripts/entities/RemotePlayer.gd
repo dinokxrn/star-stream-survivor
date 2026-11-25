@@ -48,8 +48,7 @@ func setup(p_peer_id: String, p_name: String, p_char_idx: int, p_attr_id: String
 
 	_sprite = AnimatedSprite2D.new()
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_sprite.position = Vector2(0, -23)
-	_sprite.scale = Vector2(0.78, 0.78)
+	_sprite.position = Vector2(0, -19)
 	_sprite.modulate = outfit["tint"]
 	_sprite.sprite_frames = _build_frames(char_idx)
 	add_child(_sprite)
