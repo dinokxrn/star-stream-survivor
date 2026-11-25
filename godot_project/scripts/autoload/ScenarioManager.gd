@@ -388,7 +388,9 @@ func complete_hidden_bug_box() -> void:
 	hidden_bug_done = true
 	GameState.add_coins(250, "hidden_scenario")
 	GameState.unlock_fable("fable_pacifist")
-	constellation_message.emit("[บทละครลับ 'ผู้ไม่ยอมจำนนต่อความบ้าคลั่ง' สำเร็จ! กลุ่มดาวประทับใจและมอบ 250 เหรียญ]", 250)
+	var unlocked := GameState.unlock_attribute_skills()
+	var skill_note := " + ปลดล็อกสกิลอาชีพ: %s" % ", ".join(unlocked) if not unlocked.is_empty() else ""
+	constellation_message.emit("[บทละครลับ 'ผู้ไม่ยอมจำนนต่อความบ้าคลั่ง' สำเร็จ! กลุ่มดาวประทับใจและมอบ 250 เหรียญ%s]" % skill_note, 250)
 	_mark_condition_met("hidden_pacifist", 300)
 
 
@@ -427,7 +429,9 @@ func exit_train_now() -> void:
 		GameState.met_main_cast = true
 		GameState.unlock_fable("fable_main_cast")
 		GameState.add_coins(500, "secret_main_cast")
-		constellation_message.emit("[อีเวนต์พิเศษ! คุณออกจากขบวนทันเวลา 02:50 และได้พบกับกลุ่มตัวเอกที่ตู้ 3807! (+500 เหรียญ)]", 500)
+		var unlocked := GameState.unlock_attribute_skills()
+		var skill_note := " + ปลดล็อกสกิล: %s" % ", ".join(unlocked) if not unlocked.is_empty() else ""
+		constellation_message.emit("[อีเวนต์พิเศษ! คุณออกจากขบวนทันเวลา 02:50 และได้พบกับกลุ่มตัวเอกที่ตู้ 3807! (+500 เหรียญ%s)]" % skill_note, 500)
 	else:
 		ending_type = "early_exit"
 	scenario_updated.emit()
@@ -451,9 +455,11 @@ func select_sponsor(sponsor_id: String) -> void:
 		GameState.stats["mag"] += 1
 	GameState.stigma_skill_id = String(sp.get("stigma_skill_id", ""))
 	GameState.stigma_cooldown = 0.0
+	var unlocked := GameState.unlock_attribute_skills()
 	GameState.stats_changed.emit()
 	GameState.skills_changed.emit()
-	constellation_message.emit("[ได้รับสติกมาใหม่: %s — กด [R] เพื่อใช้งาน!]" % sp["stigma"], bonus)
+	var extra_note := " | ปลุกสกิลอาชีพ: %s" % ", ".join(unlocked) if not unlocked.is_empty() else ""
+	constellation_message.emit("[ได้รับสติกมาใหม่: %s — กด [E] เพื่อใช้งาน!%s]" % [sp["stigma"], extra_note], bonus)
 
 
 func trigger_parry_reward() -> void:

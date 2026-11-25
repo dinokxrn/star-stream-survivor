@@ -192,15 +192,10 @@ func start_new_run(attr_id: String) -> void:
 		consumables[item_id] = int(current_attribute["items"][item_id])
 	_refresh_quick_slots()
 
-	var start_skills: Array = current_attribute.get("skills", ["desperate_slash"])
-	owned_skills = []
-	equipped_skills = ["", "", ""]
-	for i in start_skills.size():
-		var sid: String = String(start_skills[i])
-		if GameData.SKILLS.has(sid):
-			owned_skills.append(sid)
-			if i < 3:
-				equipped_skills[i] = sid
+	# In Chapter 1, players start with only the basic skill ("desperate_slash")
+	# until they buy skills, choose a Sponsor Constellation, or complete a side quest.
+	owned_skills = ["desperate_slash"]
+	equipped_skills = ["desperate_slash", "", ""]
 	skill_cooldowns = {}
 
 	hp = get_max_hp()
@@ -658,18 +653,35 @@ func buy_item(item_id: String) -> bool:
 	return false
 
 
-func buy_skill(skill_id: String) -> bool:
+func _grant_skill(skill_id: String) -> void:
 	if not GameData.SKILLS.has(skill_id) or (skill_id in owned_skills):
-		return false
-	var price := int(GameData.SKILLS[skill_id]["price"])
-	if not spend_coins(price):
-		return false
+		return
 	owned_skills.append(skill_id)
 	for i in equipped_skills.size():
 		if equipped_skills[i] == "":
 			equipped_skills[i] = skill_id
 			break
 	skills_changed.emit()
+
+
+func unlock_attribute_skills() -> Array[String]:
+	var unlocked: Array[String] = []
+	var class_skills: Array = current_attribute.get("skills", [])
+	for sid_v in class_skills:
+		var sid := String(sid_v)
+		if GameData.SKILLS.has(sid) and not (sid in owned_skills):
+			_grant_skill(sid)
+			unlocked.append(String(GameData.SKILLS[sid].get("name", sid)))
+	return unlocked
+
+
+func buy_skill(skill_id: String) -> bool:
+	if not GameData.SKILLS.has(skill_id) or (skill_id in owned_skills):
+		return false
+	var price := int(GameData.SKILLS[skill_id]["price"])
+	if not spend_coins(price):
+		return false
+	_grant_skill(skill_id)
 	return true
 
 

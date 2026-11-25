@@ -50,15 +50,20 @@ func _initialize() -> void:
 	gs.start_new_run("star_archmage")
 	_assert_eq(gs.equipped_weapon, "starlight_staff", "Star Archmage starts with starlight_staff")
 
-	# 1b. Magic class starting skills & weapon check
+	# 1b. Chapter 1 starts with basic skill only; signature skills unlock after sponsor/side-quest
 	gs.start_new_run("frost_mage")
 	_assert_eq(gs.equipped_weapon, "frost_staff", "Frost mage starts with frost_staff")
-	_assert_true("frost_nova" in gs.equipped_skills, "Frost mage starts with frost_nova skill")
+	_assert_true("desperate_slash" in gs.equipped_skills and not ("frost_nova" in gs.equipped_skills), "Chapter 1 starts with basic skill only")
+	gs.unlock_attribute_skills()
+	_assert_true("frost_nova" in gs.equipped_skills, "Frost mage unlocks frost_nova after sponsor/side-quest")
 	gs.start_new_run("occult_student")
-	_assert_true("fireball" in gs.equipped_skills, "Occult student starts with fireball skill")
+	_assert_true("desperate_slash" in gs.equipped_skills, "Occult student starts with basic skill in Chapter 1")
+	gs.unlock_attribute_skills()
+	_assert_true("fireball" in gs.equipped_skills, "Occult student unlocks fireball after sponsor/side-quest")
 	gs.start_new_run("zero_regressor")
 	_assert_eq(gs.equipped_skills.size(), 3, "Zero regressor has 3 skill slots")
-	_assert_true("lightning_bolt" in gs.equipped_skills, "Zero regressor starts with lightning_bolt")
+	gs.unlock_attribute_skills()
+	_assert_true("lightning_bolt" in gs.owned_skills, "Zero regressor unlocks lightning_bolt after sponsor/side-quest")
 
 	# 2. Personal Attribute randomizer
 	var rng := RandomNumberGenerator.new()
