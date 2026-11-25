@@ -188,16 +188,16 @@ func _ready() -> void:
 	)
 	util_row.add_child(_save_btn)
 
-	# Second compact row: Bag & Quick Weapon Swap buttons (works on Mobile/iPad/Desktop!)
+	# Second compact row: Bag, Quick Weapon Swap, and Bihyung Story Guide buttons
 	var bag_row := HBoxContainer.new()
-	bag_row.position = Vector2(462, 48)
-	bag_row.add_theme_constant_override("separation", 8)
+	bag_row.position = Vector2(402, 48)
+	bag_row.add_theme_constant_override("separation", 6)
 	bag_row.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(bag_row)
 
 	var btn_bag := Button.new()
 	btn_bag.text = "🎒 กระเป๋า [I]"
-	btn_bag.custom_minimum_size = Vector2(118, 28)
+	btn_bag.custom_minimum_size = Vector2(114, 28)
 	btn_bag.focus_mode = Control.FOCUS_NONE
 	btn_bag.pressed.connect(func():
 		var ev := InputEventKey.new()
@@ -209,7 +209,7 @@ func _ready() -> void:
 
 	var btn_swap := Button.new()
 	btn_swap.text = "⚔ สลับอาวุธ [R]"
-	btn_swap.custom_minimum_size = Vector2(132, 28)
+	btn_swap.custom_minimum_size = Vector2(126, 28)
 	btn_swap.focus_mode = Control.FOCUS_NONE
 	btn_swap.pressed.connect(func():
 		var wname := GameState.cycle_next_weapon()
@@ -217,6 +217,18 @@ func _ready() -> void:
 		ScenarioManager.constellation_message.emit("[⚔ สลับอาวุธเป็น: %s]" % wname, 0)
 	)
 	bag_row.add_child(btn_swap)
+
+	var btn_bihyung := Button.new()
+	btn_bihyung.text = "👹 บีฮยอง [H]"
+	btn_bihyung.custom_minimum_size = Vector2(118, 28)
+	btn_bihyung.focus_mode = Control.FOCUS_NONE
+	btn_bihyung.pressed.connect(func():
+		var ev := InputEventKey.new()
+		ev.physical_keycode = KEY_H
+		ev.pressed = true
+		Input.parse_input_event(ev)
+	)
+	bag_row.add_child(btn_bihyung)
 
 	SfxManager.volume_changed.connect(func(pct: int, muted: bool):
 		if is_instance_valid(_vol_lbl):

@@ -78,6 +78,15 @@ func toggle_bag_window() -> void:
 	_show_bag_window()
 
 
+func toggle_bihyung_story() -> void:
+	if visible and _active_kind == "bihyung_recap":
+		close_modal()
+		return
+	if visible and _active_kind in ["sponsor", "result", "intro", "bug_box", "boon", "route_choice"]:
+		return
+	show_scenario_intro(ScenarioManager.current_stage, true)
+
+
 func _make_tab_switcher(active_tab: String) -> HBoxContainer:
 	var bar := HBoxContainer.new()
 	bar.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -305,78 +314,150 @@ func toggle_shop_window() -> void:
 	_show_shop_window()
 
 
-func show_scenario_intro(stage_num: int = 1) -> void:
+func _make_bihyung_portrait(size_px: int = 124) -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 6)
+	col.custom_minimum_size = Vector2(size_px + 24, size_px + 38)
+
+	var frame := PanelContainer.new()
+	frame.custom_minimum_size = Vector2(size_px + 12, size_px + 12)
+	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	frame.add_theme_stylebox_override("panel", UiTheme.make_panel_style(Color(0.25, 0.88, 1.0), Color(0.04, 0.09, 0.18, 0.96), 2))
+	col.add_child(frame)
+
+	var tex_rect := TextureRect.new()
+	tex_rect.texture = load("res://assets/sprites/bihyung_portrait.png")
+	tex_rect.custom_minimum_size = Vector2(size_px, size_px)
+	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	frame.add_child(tex_rect)
+
+	var name_lbl := Label.new()
+	name_lbl.text = "โดเกบิ บีฮยอง\n#BI-7623"
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.add_theme_font_override("font", UiTheme.load_pixel_font())
+	name_lbl.add_theme_font_size_override("font_size", 14)
+	name_lbl.add_theme_color_override("font_color", Color(0.45, 0.94, 1.0))
+	col.add_child(name_lbl)
+
+	# Gentle floating bob animation
+	var tw := frame.create_tween()
+	tw.set_loops()
+	tw.tween_property(tex_rect, "position:y", -4.0, 0.65).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(tex_rect, "position:y", 4.0, 0.65).set_trans(Tween.TRANS_SINE)
+	return col
+
+
+func show_scenario_intro(stage_num: int = 1, is_recap: bool = false) -> void:
 	var px_font := UiTheme.load_pixel_font()
+	var pages: Array = GameData.get_bihyung_story_pages(stage_num, GameState.story_route)
+	var page_state := {"idx": 0}
+
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(720, 370)
-	panel.add_theme_stylebox_override("panel", UiTheme.make_panel_style(UiTheme.COL_BORDER, UiTheme.COL_BG, 3))
+	panel.custom_minimum_size = Vector2(820, 405)
+	panel.add_theme_stylebox_override("panel", UiTheme.make_panel_style(Color(0.28, 0.86, 1.0), UiTheme.COL_BG, 3))
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 14)
+	v.add_theme_constant_override("separation", 12)
 	panel.add_child(v)
 
 	var h := Label.new()
 	h.text = ScenarioManager.get_stage_title()
 	h.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	h.add_theme_font_override("font", px_font)
-	h.add_theme_font_size_override("font_size", 24)
-	h.add_theme_color_override("font_color", UiTheme.COL_BORDER)
+	h.add_theme_font_size_override("font_size", 22)
+	h.add_theme_color_override("font_color", UiTheme.COL_GOLD)
 	v.add_child(h)
+
+	var mid := HBoxContainer.new()
+	mid.add_theme_constant_override("separation", 18)
+	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(mid)
+
+	mid.add_child(_make_bihyung_portrait(124))
+
+	var speech_box := PanelContainer.new()
+	speech_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	speech_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	speech_box.add_theme_stylebox_override("panel", UiTheme.make_panel_style(Color(0.20, 0.56, 0.82), Color(0.03, 0.06, 0.13, 0.94), 2))
+	mid.add_child(speech_box)
+
+	var sv := VBoxContainer.new()
+	sv.add_theme_constant_override("separation", 8)
+	speech_box.add_child(sv)
+
+	var page_hdr := Label.new()
+	page_hdr.add_theme_font_override("font", px_font)
+	page_hdr.add_theme_font_size_override("font_size", 18)
+	page_hdr.add_theme_color_override("font_color", Color(0.45, 0.95, 1.0))
+	sv.add_child(page_hdr)
 
 	var body := Label.new()
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_font_override("font", px_font)
-	body.add_theme_font_size_override("font_size", 18)
-	match stage_num:
-		1:
-			body.text = (
-				"โดแกบี: \"บริการฟรีของระบบดาวเคราะห์ 8612 สิ้นสุดลงแล้ว! ยินดีต้อนรับสู่บทละครแรก!\"\n\n"
-				+ "• เงื่อนไขเคลียร์: กำจัดสิ่งมีชีวิตอย่างน้อย 1 ตัว\n"
-				+ "• เวลาจำกัด: 3 นาที (180 วิ)   |   รางวัล: 300 เหรียญ\n\n"
-				+ "เคล็ดลับ: จบไวให้เวลายังเหลือ ≥ 02:50 แล้วกดออกทันทีเพื่อพบกลุ่มตัวเอก หรือสำรวจตู้ 3 หากล่องแมลง!"
-			)
-		2:
-			body.text = (
-				"คุณก้าวออกจากขบวนรถไฟสู่ 'สะพานตงโฮ' ใต้ท้องฟ้าสีเลือด...\n\n"
-				+ "• เงื่อนไขเคลียร์: ฝ่าเขตหมอกพิษ โค่น 'อสูรสะพานตงโฮ' และกด [F] เข้าประตูสถานีโอกซู\n"
-				+ "• เควสรอง: เก็บ 'หน้ากากกันหมอกพิษ' จากลังบนสะพาน หรือซื้อจากถุงโดแกบี [B]\n"
-				+ "• เวลาจำกัด: 3 นาที 30 วิ   |   รางวัล: 500 เหรียญ"
-			)
-		3:
-			body.text = (
-				"สถานีโอกซูถูกปกคลุมด้วยความมืดมิด มีเพียงวงแสงสีเขียว 'Green Zone' อยู่กลางชานชาลา!\n\n"
-				+ "• เงื่อนไขเคลียร์: กด [F] ที่เสา Green Zone และเอาชีวิตรอดต้านอสูร 3 เวฟ + บอสประจำสถานี\n"
-				+ "• คำเตือน: หากออกนอกวง Green Zone ระหว่างเวฟ ความมืดจะกัดกิน HP ต่อเนื่อง!\n"
-				+ "• เควสรอง: วิ่งฝ่าความมืดออกไปด้านขวาเพื่อช่วยผู้รอดชีวิต (+200 เหรียญ)   |   รางวัล: 700 เหรียญ"
-			)
-		4:
-			body.text = (
-				"บทละครใหญ่เปิดฉาก! เหล่าผู้ท้าชิงต่างมารวมตัวกันที่โถงสถานีเพื่อชิงตำแหน่ง 'ราชา'!\n\n"
-				+ "• เงื่อนไขเคลียร์: ยึดธงสถานีทั้ง 2 จุด (กด [F]) และโค่นบอสใหญ่ 'ทรราชผู้ชิงบัลลังก์'\n"
-				+ "• โบนัสธง: ทุกธงที่ยึดได้จะเพิ่มพลังโจมตี +6 และมอบ 200 เหรียญทันที\n"
-				+ "• เวลาจำกัด: 5 นาที   |   รางวัล: 1,200 เหรียญ"
-			)
-		_:
-			var cd: Dictionary = GameData.CHAPTERS.get(stage_num, {})
-			var flag_line := "• ยึดธง/ทำลายผนึก %d จุด (กด [F])\n" % int(cd.get("flags_req", 0)) if int(cd.get("flags_req", 0)) > 0 else ""
-			var fog_line := "• ระวังเขตหมอกพิษกลางฉาก (ควรมีหน้ากากกันพิษ)\n" if String(cd.get("mode", "")) == "fog" else ""
-			body.text = (
-				"%s\n\n" % String(cd.get("intro", ""))
-				+ flag_line
-				+ fog_line
-				+ "• กำจัดศัตรูอย่างน้อย %d ตัว และโค่นบอส '%s'\n" % [int(cd.get("kills_req", 8)), String(cd.get("boss_name", "บอสประจำบท"))]
-				+ "• เพดานเลเวลบทนี้: Lv.%d   |   รางวัล: %d เหรียญ" % [int(cd.get("level_cap", 50)), int(cd.get("reward_coins", 1500))]
-			)
-	v.add_child(body)
+	body.add_theme_font_size_override("font_size", 17)
+	body.add_theme_color_override("font_color", Color(0.94, 0.97, 1.0))
+	sv.add_child(body)
 
-	var btn := Button.new()
-	btn.text = "รับทราบ — เริ่มบทละคร!"
-	btn.add_theme_font_override("font", px_font)
-	btn.add_theme_font_size_override("font_size", 18)
-	btn.custom_minimum_size = Vector2(280, 46)
-	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	btn.pressed.connect(close_modal)
-	v.add_child(btn)
-	_open_panel("intro", panel)
+	var page_ind := Label.new()
+	page_ind.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	page_ind.add_theme_font_size_override("font_size", 13)
+	page_ind.add_theme_color_override("font_color", Color(0.62, 0.78, 0.92))
+	sv.add_child(page_ind)
+
+	var btn_row := HBoxContainer.new()
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	btn_row.add_theme_constant_override("separation", 12)
+	v.add_child(btn_row)
+
+	var btn_prev := Button.new()
+	btn_prev.text = "◀ ย้อนกลับ"
+	btn_prev.custom_minimum_size = Vector2(140, 42)
+	btn_row.add_child(btn_prev)
+
+	var btn_next := Button.new()
+	btn_next.custom_minimum_size = Vector2(260, 44)
+	btn_next.add_theme_font_override("font", px_font)
+	btn_next.add_theme_font_size_override("font_size", 18)
+	btn_next.add_theme_stylebox_override("normal", UiTheme.make_button_style(Color(0.08, 0.30, 0.46, 0.98), Color(0.35, 0.92, 1.0)))
+	btn_row.add_child(btn_next)
+
+	var btn_skip := Button.new()
+	btn_skip.text = "ปิดหน้าต่าง" if is_recap else "ข้ามไปเริ่มเลย ⏭"
+	btn_skip.custom_minimum_size = Vector2(160, 42)
+	btn_skip.pressed.connect(close_modal)
+	btn_row.add_child(btn_skip)
+
+	var refresh_page := func():
+		var idx: int = int(page_state["idx"])
+		var p: Dictionary = pages[idx]
+		page_hdr.text = String(p.get("header", ""))
+		body.text = String(p.get("text", ""))
+		page_ind.text = "หน้า %d / %d" % [idx + 1, pages.size()]
+		btn_prev.disabled = idx <= 0
+		if idx < pages.size() - 1:
+			btn_next.text = "ฟังบีฮยองต่อ ▶"
+		else:
+			btn_next.text = "กลับไปลุยต่อ!" if is_recap else "รับทราบ — เริ่มบทละคร!"
+
+	btn_prev.pressed.connect(func():
+		if int(page_state["idx"]) > 0:
+			page_state["idx"] = int(page_state["idx"]) - 1
+			SfxManager.play("system")
+			refresh_page.call()
+	)
+	btn_next.pressed.connect(func():
+		if int(page_state["idx"]) < pages.size() - 1:
+			page_state["idx"] = int(page_state["idx"]) + 1
+			SfxManager.play("system")
+			refresh_page.call()
+		else:
+			close_modal()
+	)
+	refresh_page.call()
+	_open_panel("bihyung_recap" if is_recap else "intro", panel)
 
 
 func _show_attribute_window() -> void:
@@ -719,7 +800,24 @@ func show_sponsor_selection() -> void:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_override("font", UiTheme.load_pixel_font())
 	sub.add_theme_font_size_override("font_size", 18)
-	v.add_child(sub)
+	var bihyung_row := HBoxContainer.new()
+	bihyung_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	bihyung_row.add_theme_constant_override("separation", 14)
+	v.add_child(bihyung_row)
+
+	var mini_p := TextureRect.new()
+	mini_p.texture = load("res://assets/sprites/bihyung_portrait.png")
+	mini_p.custom_minimum_size = Vector2(64, 64)
+	mini_p.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mini_p.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	mini_p.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bihyung_row.add_child(mini_p)
+
+	sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	sub.text = "บีฮยอง: \"" + sub.text + "\""
+	bihyung_row.add_child(sub)
 
 	for sp_id in ["moonlight", "moonless_shadow", "eternal_flame", "none"]:
 		var sp: Dictionary = GameData.SPONSORS[sp_id]
@@ -759,7 +857,24 @@ func show_boon_selection() -> void:
 	var sub := Label.new()
 	sub.text = "กลุ่มดาวประทับใจผลงานของคุณ! เลือกความสามารถพิเศษติดตัว 1 อย่างก่อนเข้าสู่บทละครถัดไป:"
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(sub)
+	var bihyung_row := HBoxContainer.new()
+	bihyung_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	bihyung_row.add_theme_constant_override("separation", 14)
+	v.add_child(bihyung_row)
+
+	var mini_p := TextureRect.new()
+	mini_p.texture = load("res://assets/sprites/bihyung_portrait.png")
+	mini_p.custom_minimum_size = Vector2(64, 64)
+	mini_p.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mini_p.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	mini_p.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bihyung_row.add_child(mini_p)
+
+	sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	sub.text = "บีฮยอง: \"" + sub.text + "\""
+	bihyung_row.add_child(sub)
 
 	for boon in choices:
 		var bid: String = boon["id"]
@@ -830,7 +945,24 @@ func show_story_route_choice(cleared_stage: int) -> void:
 			var skip_title: String = GameData.CHAPTERS.get(skip_s, {}).get("title", "บทละครที่ %d" % skip_s)
 			options.append(["⚡ เส้นทางลัดเสี่ยงตาย: ข้ามไปบุก %s!" % skip_title, "ท้าทายชะตากรรม: ข้าม 1 บท + รับ 900 เหรียญ +8 ATK ถาวร", skip_s, "route_skip_ahead", Color(0.36, 0.22, 0.05, 0.96)])
 
-	v.add_child(sub)
+	var bihyung_row := HBoxContainer.new()
+	bihyung_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	bihyung_row.add_theme_constant_override("separation", 14)
+	v.add_child(bihyung_row)
+
+	var mini_p := TextureRect.new()
+	mini_p.texture = load("res://assets/sprites/bihyung_portrait.png")
+	mini_p.custom_minimum_size = Vector2(64, 64)
+	mini_p.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mini_p.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	mini_p.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bihyung_row.add_child(mini_p)
+
+	sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	sub.text = "บีฮยอง: \"" + sub.text + "\""
+	bihyung_row.add_child(sub)
 
 	for opt in options:
 		var btn := Button.new()

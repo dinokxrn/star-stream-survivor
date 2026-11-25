@@ -88,6 +88,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.physical_keycode == KEY_I:
 			_modals.toggle_bag_window()
+		elif event.physical_keycode == KEY_H:
+			_modals.toggle_bihyung_story()
 		elif event.physical_keycode == KEY_R and not _modals.is_modal_open():
 			var wname := GameState.cycle_next_weapon()
 			SfxManager.play("coin")
@@ -105,7 +107,7 @@ func _process(delta: float) -> void:
 	elif Input.is_action_just_pressed("exit_train") and ScenarioManager.is_farming and not _modals.is_modal_open():
 		_modals.show_post_clear_choice()
 	elif Input.is_action_just_pressed("ui_cancel") and _modals.is_modal_open():
-		if _modals._active_kind in ["status", "shop", "bag", "bug_box"]:
+		if _modals._active_kind in ["status", "shop", "bag", "bug_box", "bihyung_recap"]:
 			_modals.close_modal()
 
 	if not get_tree().paused:
